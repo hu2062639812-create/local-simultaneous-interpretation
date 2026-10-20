@@ -29,6 +29,7 @@ google-services.json
 *.jks
 *.p12
 *.keystore
+keystore.properties
 secrets.properties
 
 # Environment files
