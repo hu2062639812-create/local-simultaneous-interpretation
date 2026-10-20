@@ -6,7 +6,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.hearopilot.app.data.config.modelConfigForVariant
 import com.hearopilot.app.data.datasource.ModelDownloadManager
-import com.hearopilot.app.data.device.DeviceTierDetector
 import com.hearopilot.app.data.service.AndroidDownloadManager
 import com.hearopilot.app.data.service.DownloadStateManager
 import com.hearopilot.app.domain.model.DownloadState
@@ -54,12 +53,19 @@ class SetupViewModel @Inject constructor(
     private val modelDownloadManager: ModelDownloadManager,
     private val androidDownloadManager: AndroidDownloadManager,
     private val downloadStateManager: DownloadStateManager,
-    private val deviceTierDetector: DeviceTierDetector,
     private val settingsRepository: SettingsRepository,
     @ApplicationContext private val context: Context
 ) : ViewModel() {
 
-    private val _currentStep = MutableStateFlow(OnboardingStep.WELCOME)
+    private val _currentStep = MutableStateFlow(
+        if (context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+                .getBoolean(KEY_INTERFACE_LANGUAGE_SELECTED, false)
+        ) {
+            OnboardingStep.WELCOME
+        } else {
+            OnboardingStep.INTERFACE_LANGUAGE
+        }
+    )
     val currentStep: StateFlow<OnboardingStep> = _currentStep.asStateFlow()
 
     // Observe download states from DownloadStateManager (updated by AndroidDownloadManager)
@@ -80,6 +86,7 @@ class SetupViewModel @Inject constructor(
         private const val PREFS_NAME = "onboarding_prefs"
         private const val KEY_ONBOARDING_COMPLETE = "onboarding_complete"
         private const val KEY_STT_READY = "stt_ready"
+        private const val KEY_INTERFACE_LANGUAGE_SELECTED = "interface_language_selected"
     }
 
     init {
@@ -162,6 +169,7 @@ class SetupViewModel @Inject constructor(
      */
     fun goToPreviousStep() {
         _currentStep.value = when (_currentStep.value) {
+            OnboardingStep.WELCOME -> OnboardingStep.INTERFACE_LANGUAGE
             OnboardingStep.LANGUAGES -> OnboardingStep.WELCOME
             OnboardingStep.STT_DOWNLOAD -> OnboardingStep.LANGUAGES
             else -> _currentStep.value
@@ -174,6 +182,7 @@ class SetupViewModel @Inject constructor(
      * with no way to resume it.
      */
     fun canGoBack(): Boolean = when (_currentStep.value) {
+        OnboardingStep.WELCOME -> true
         OnboardingStep.LANGUAGES -> true
         OnboardingStep.STT_DOWNLOAD -> sttDownloadState.value is DownloadState.Idle
         else -> false
@@ -184,6 +193,7 @@ class SetupViewModel @Inject constructor(
      */
     fun proceedToNextStep() {
         _currentStep.value = when (_currentStep.value) {
+            OnboardingStep.INTERFACE_LANGUAGE -> OnboardingStep.WELCOME
             OnboardingStep.WELCOME -> OnboardingStep.LANGUAGES
             OnboardingStep.LANGUAGES -> OnboardingStep.STT_DOWNLOAD
             OnboardingStep.STT_DOWNLOAD -> OnboardingStep.LLM_DOWNLOAD
@@ -193,6 +203,22 @@ class SetupViewModel @Inject constructor(
             }
             OnboardingStep.COMPLETED -> OnboardingStep.COMPLETED
         }
+    }
+
+    /**
+     * Record that the user picked an interface language on the first-run screen.
+     * The language itself is persisted synchronously by [com.hearopilot.app.ui.locale.AppLocale]
+     * in the app layer; this flag only controls whether the picker is shown again.
+     */
+    fun onInterfaceLanguageSelected(storageKey: String) {
+        context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_INTERFACE_LANGUAGE_SELECTED, true)
+            .apply()
+        if (_currentStep.value == OnboardingStep.INTERFACE_LANGUAGE) {
+            _currentStep.value = OnboardingStep.WELCOME
+        }
+        Log.i(TAG, "Interface language selected: $storageKey")
     }
 
     /**
@@ -214,13 +240,13 @@ class SetupViewModel @Inject constructor(
     }
 
     /**
-     * Start LLM model download for the device-recommended variant (onboarding).
-     * Persists the recommended variant to settings before downloading so that
+     * Start the Qwen download (the only interpretation model) during onboarding.
+     * Persists the variant to settings before downloading so that
      * [persistLlmModelSettings] can read it back consistently on completion.
      */
     fun startLlmDownload() {
-        val variant = deviceTierDetector.detectRecommendedVariant()
-        Log.i(TAG, "Starting LLM download for recommended variant: $variant")
+        val variant = LlmModelVariant.QWEN3_5_Q8_0
+        Log.i(TAG, "Starting LLM download for interpretation model: $variant")
         viewModelScope.launch {
             val current = settingsRepository.getSettings().first()
             settingsRepository.updateSettings(current.copy(llmModelVariant = variant))

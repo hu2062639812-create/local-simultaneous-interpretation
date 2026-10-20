@@ -42,8 +42,10 @@ interface SttDataSource {
  *
  * @property text Recognized text
  * @property isComplete Whether this represents a complete utterance (speech segment ended)
+ * @property language Detected language code (e.g. "zh", "en"), when the model reports one
  */
 data class RecognitionResult(
     val text: String,
-    val isComplete: Boolean
+    val isComplete: Boolean,
+    val language: String? = null
 )

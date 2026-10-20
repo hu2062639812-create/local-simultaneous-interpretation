@@ -41,6 +41,9 @@ import com.hearopilot.app.data.database.entity.TranscriptionSessionEntity
  * Database version 6:
  * - Added insight_strategy column (REAL_TIME/END_OF_SESSION) to transcription_sessions
  * - Added topic column (nullable text) to transcription_sessions
+ *
+ * Database version 7:
+ * - Added translated_text and detected_language columns to transcription_segments
  */
 @Database(
     entities = [
@@ -48,7 +51,7 @@ import com.hearopilot.app.data.database.entity.TranscriptionSessionEntity
         TranscriptionSegmentEntity::class,
         LlmInsightEntity::class
     ],
-    version = 6,
+    version = 7,
     exportSchema = true
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -115,6 +118,17 @@ abstract class AppDatabase : RoomDatabase() {
                 // Add topic column; existing sessions have no topic
                 database.execSQL(
                     "ALTER TABLE transcription_sessions ADD COLUMN topic TEXT"
+                )
+            }
+        }
+
+        val MIGRATION_6_7 = object : Migration(6, 7) {
+            override fun migrate(database: SupportSQLiteDatabase) {
+                database.execSQL(
+                    "ALTER TABLE transcription_segments ADD COLUMN translated_text TEXT"
+                )
+                database.execSQL(
+                    "ALTER TABLE transcription_segments ADD COLUMN detected_language TEXT"
                 )
             }
         }

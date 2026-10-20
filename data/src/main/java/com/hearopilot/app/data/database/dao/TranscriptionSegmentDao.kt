@@ -40,6 +40,12 @@ interface TranscriptionSegmentDao {
     suspend fun updateText(segmentId: String, newText: String)
 
     /**
+     * Attach an on-device translation to an existing segment.
+     */
+    @Query("UPDATE transcription_segments SET translated_text = :translatedText WHERE id = :segmentId")
+    suspend fun updateTranslation(segmentId: String, translatedText: String)
+
+    /**
      * Delete all segments for a session (usually handled by CASCADE).
      */
     @Query("DELETE FROM transcription_segments WHERE session_id = :sessionId")

@@ -21,15 +21,21 @@ import com.hearopilot.app.domain.service.LlmProcessingServiceController
 import com.hearopilot.app.domain.service.RecordingServiceController
 import com.hearopilot.app.domain.usecase.llm.GenerateBatchInsightUseCase
 import com.hearopilot.app.domain.usecase.llm.GenerateFinalInsightUseCase
+import com.hearopilot.app.domain.usecase.llm.GenerateSessionSummaryUseCase
 import com.hearopilot.app.domain.usecase.llm.InitializeLlmUseCase
+import com.hearopilot.app.domain.usecase.llm.TranslateSegmentUseCase
 import com.hearopilot.app.domain.usecase.stt.StartSttStreamingUseCase
 import com.hearopilot.app.domain.usecase.stt.StopSttStreamingUseCase
 import com.hearopilot.app.domain.usecase.sync.SyncSttLlmUseCase
+import com.hearopilot.app.domain.usecase.transcription.DeleteInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveSegmentUseCase
 import com.hearopilot.app.domain.usecase.transcription.UpdateSessionDurationUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -75,11 +81,14 @@ class MainViewModel @Inject constructor(
     private val syncSttLlmUseCase: SyncSttLlmUseCase,
     private val generateFinalInsightUseCase: GenerateFinalInsightUseCase,
     private val generateBatchInsightUseCase: GenerateBatchInsightUseCase,
+    private val generateSessionSummaryUseCase: GenerateSessionSummaryUseCase,
+    private val translateSegmentUseCase: TranslateSegmentUseCase,
     private val startSttStreamingUseCase: StartSttStreamingUseCase,
     private val stopSttStreamingUseCase: StopSttStreamingUseCase,
     private val initializeLlmUseCase: InitializeLlmUseCase,
     private val saveSegmentUseCase: SaveSegmentUseCase,
     private val saveInsightUseCase: SaveInsightUseCase,
+    private val deleteInsightUseCase: DeleteInsightUseCase,
     private val updateSessionDurationUseCase: UpdateSessionDurationUseCase,
     private val settingsRepository: SettingsRepository,
     private val sttRepository: SttRepository,
@@ -106,8 +115,12 @@ class MainViewModel @Inject constructor(
 
     private var transcriptionJob: Job? = null
     private var insightsJob: Job? = null
-    private var settingsWatcherJob: Job? = null
+    private var translationJob: Job? = null
+    private var translationQueue: Channel<TranscriptionSegment>? = null
     private var timerJob: Job? = null
+    // Serializes pause teardown with a resume/stop so two AudioRecord pipelines
+    // can never coexist when the user taps Pause and Resume in quick succession.
+    private var streamTransitionJob: Job? = null
     // Cumulative duration of all completed recording segments within this session.
     // Updated on each stop so the next start can offset the timer correctly.
     private var accumulatedDurationMs: Long = 0L
@@ -125,8 +138,10 @@ class MainViewModel @Inject constructor(
     // Reset on each startStreaming() so the threshold is re-evaluated per segment.
     // Kept for the timer-based LONG_MEETING guard (RAM check after 3 min).
     private var conservativeThreadsApplied = false
-    // Translation target language at the moment the insights job was launched
-    private var activeTranslationTarget: String? = null
+
+    // Set once per recording so a failing translation does not overwrite a more
+    // specific error banner on every queued utterance.
+    private var translationFailureReported = false
 
     // Accumulates complete segment text not yet covered by a periodic LLM insight.
     // Thread-safe: written by transcriptionJob coroutine, cleared by insightsJob coroutine.
@@ -262,12 +277,11 @@ class MainViewModel @Inject constructor(
                     val session = transcriptionRepository.getSession(sessionId).first()
                     val sessionMode = session?.mode ?: currentRecordingMode
                     val sessionStrategy = session?.insightStrategy ?: currentInsightStrategy
-                    // Defer model loading when:
-                    //  - LONG_MEETING: model is loaded lazily between inferences to reduce RAM pressure.
-                    //  - END_OF_SESSION: model is only needed after recording stops; loading it upfront
-                    //    would waste ~1.4 GB of RAM for the entire recording duration.
-                    val loadImmediately = sessionMode != RecordingMode.LONG_MEETING
-                        && sessionStrategy != InsightStrategy.END_OF_SESSION
+                    // Interpretation needs the LLM from the first utterance onward.
+                    // Other modes defer loading when the model is only needed in batch.
+                    val loadImmediately = sessionMode == RecordingMode.REAL_TIME_TRANSLATION ||
+                        (sessionMode != RecordingMode.LONG_MEETING
+                            && sessionStrategy != InsightStrategy.END_OF_SESSION)
                     // Apply conservative threads before loading if the device was previously
                     // detected as constrained (cached in DataStore across sessions).
                     // LlmRepositoryImpl also reads this at construction from DataStore, but calling
@@ -279,7 +293,13 @@ class MainViewModel @Inject constructor(
                     initializeLlmUseCase(llmModelPath, loadImmediately)
                         .onFailure { e ->
                             Log.e(TAG, "LLM initialization failed", e)
-                            _uiState.update { it.copy(llmStatus = "LLM unavailable: ${e.message}") }
+                            _uiState.update {
+                                it.copy(
+                                    isLlmModelAvailable = false,
+                                    llmStatus = "LLM unavailable: ${e.message}",
+                                    error = "本地 AI 模型加载失败，翻译和总结暂不可用：${e.message}"
+                                )
+                            }
                         }
                         .onSuccess {
                             Log.i(TAG, "LLM initialized successfully")
@@ -351,12 +371,20 @@ class MainViewModel @Inject constructor(
                             // loadImmediately=false still registers lastModelPath so that
                             // reloadModel() (called by batch/real-time use cases at session end)
                             // has a valid path — inference for THIS session works correctly.
-                            val loadNow = !_uiState.value.isRecording
-                                && currentInsightStrategy != InsightStrategy.END_OF_SESSION
+                            // Paused sessions still hold the STT model, so treat them as active.
+                            val loadNow = !_uiState.value.isSessionActive
+                                && (currentRecordingMode == RecordingMode.REAL_TIME_TRANSLATION
+                                    || currentInsightStrategy != InsightStrategy.END_OF_SESSION)
                             initializeLlmUseCase(path, loadNow)
                                 .onFailure { e ->
                                     Log.e(TAG, "LLM initialization failed after download", e)
-                                    _uiState.update { it.copy(llmStatus = "LLM unavailable: ${e.message}") }
+                                    _uiState.update {
+                                        it.copy(
+                                            isLlmModelAvailable = false,
+                                            llmStatus = "LLM unavailable: ${e.message}",
+                                            error = "本地 AI 模型加载失败，翻译和总结暂不可用：${e.message}"
+                                        )
+                                    }
                                 }
                                 .onSuccess {
                                     Log.i(TAG, "LLM initialized after download (loadNow=$loadNow)")
@@ -388,16 +416,19 @@ class MainViewModel @Inject constructor(
     }
 
     /**
-     * Start STT streaming and periodic LLM inference.
+     * Start or resume STT streaming and on-device inference.
      *
      * REFACTORED: Uses a single shared STT stream for both UI display and LLM processing.
      * This prevents the crash caused by duplicate AudioRecord instances.
      *
-     * NEW: Registers stream with SessionManager and starts foreground service for screen-off recording.
+     * A session has three states before Stop: recording, paused and idle. Starting from
+     * idle opens a fresh capture pipeline; starting while paused waits for pause teardown
+     * and then reuses the loaded STT/LLM models and the existing translation queue.
      */
     fun startStreaming() {
-        if (_uiState.value.isRecording) {
-            Log.w(TAG, "Already recording")
+        val current = _uiState.value
+        if (current.isRecording || current.isFinalizingSession) {
+            Log.w(TAG, "Cannot start: recording or finalizing already in progress")
             return
         }
         // Reset so the conservative-thread threshold is re-evaluated from the current
@@ -413,10 +444,87 @@ class MainViewModel @Inject constructor(
             return
         }
 
-        _uiState.update { it.copy(isRecording = true, error = null, recordingDurationMillis = accumulatedDurationMs) }
+        _uiState.update {
+            it.copy(
+                isRecording = true,
+                isPaused = false,
+                error = null,
+                recordingDurationMillis = accumulatedDurationMs
+            )
+        }
 
-        // Start recording timer offset by any previously accumulated duration so that
-        // resuming within the same session produces a cumulative elapsed time display.
+        // A resume can arrive while pauseCapture() is still draining the old AudioRecord.
+        // Serialize the two so two capture pipelines never coexist.
+        val pendingTransition = streamTransitionJob
+        if (pendingTransition != null && pendingTransition.isActive) {
+            viewModelScope.launch {
+                pendingTransition.join()
+                beginCaptureIfStillActive()
+            }
+        } else {
+            beginCaptureIfStillActive()
+        }
+    }
+
+    /**
+     * Pause the current session without ending it.
+     *
+     * STT capture and the timer stop immediately; the session duration is persisted.
+     * The STT model, LLM and translation queue stay alive, so resume is instant and
+     * translations queued before the pause keep draining while the mic is off.
+     */
+    fun pauseStreaming() {
+        if (!_uiState.value.isRecording) {
+            Log.w(TAG, "Cannot pause: not recording")
+            return
+        }
+        // Capture the elapsed time synchronously so an immediate resume cannot race
+        // with pauseCapture() and reset the duration to a stale accumulated value.
+        val pausedDuration = _uiState.value.recordingDurationMillis
+        accumulatedDurationMs = pausedDuration
+        _uiState.update {
+            it.copy(
+                isRecording = false,
+                isPaused = true,
+                recordingDurationMillis = pausedDuration
+            )
+        }
+        streamTransitionJob = viewModelScope.launch {
+            pauseCapture(pausedDuration)
+        }
+        Log.i(TAG, "Session paused at ${pausedDuration}ms")
+    }
+
+    private suspend fun pauseCapture(pausedDuration: Long) {
+        timerJob?.cancel()
+        timerJob = null
+
+        updateSessionDurationUseCase(sessionId, pausedDuration)
+            .onFailure { e -> Log.e(TAG, "Failed to persist paused duration: ${e.message}") }
+
+        // Stop the mic and drain the segments still buffered in the STT pipeline.
+        stopSttStreamingUseCase()
+        withTimeoutOrNull(4_000L) { transcriptionJob?.join() }
+        transcriptionJob?.cancel()
+        transcriptionJob = null
+
+        // Real-time insight collection is restarted on resume; the translation worker
+        // is intentionally left running to finish the utterances queued before pause.
+        insightsJob?.cancel()
+        insightsJob = null
+
+        activeSharedSttStream = null
+        _uiState.update { it.copy(currentPartialSegment = null) }
+        serviceController.stopService()
+        Log.i(TAG, "STT capture paused; models and translation queue retained")
+    }
+
+    private fun beginCaptureIfStillActive() {
+        if (!_uiState.value.isRecording) return
+
+        // Timer is offset by any previously accumulated duration so that resuming
+        // within the same session produces a cumulative elapsed time display.
+        timerJob?.cancel()
         timerJob = viewModelScope.launch {
             val segmentStart = System.currentTimeMillis()
             while (true) {
@@ -425,7 +533,7 @@ class MainViewModel @Inject constructor(
                 val totalDurationMs = accumulatedDurationMs + segmentElapsed
                 _uiState.update { it.copy(recordingDurationMillis = totalDurationMs) }
 
-                // Conservative thread management is now handled adaptively by LlmRepositoryImpl:
+                // Conservative thread management is handled adaptively by LlmRepositoryImpl:
                 // - Post-load check (checkAndCacheMemoryConstraint) detects RAM pressure accurately.
                 // - Per-inference recording (recordConstrainedInference) learns the char threshold.
                 // - isLargeContext() proactively applies conservative threads before each reload.
@@ -437,10 +545,13 @@ class MainViewModel @Inject constructor(
         val sharedSttStream = sttRepository.startStreaming()
             .catch { e ->
                 Log.e(TAG, "STT error", e)
+                timerJob?.cancel()
+                timerJob = null
                 _uiState.update {
                     it.copy(
                         error = "Transcription error: ${e.message}",
-                        isRecording = false
+                        isRecording = false,
+                        isPaused = false
                     )
                 }
             }
@@ -450,10 +561,7 @@ class MainViewModel @Inject constructor(
                 replay = 0
             )
 
-        // Store for mid-session LLM job restart
         activeSharedSttStream = sharedSttStream
-        activeTranslationTarget = currentOutputLanguage
-            ?: _uiState.value.settings.translationTargetLanguage
 
         // Register stream with service controller for service observation
         serviceController.registerTranscriptionFlow(sharedSttStream)
@@ -461,32 +569,16 @@ class MainViewModel @Inject constructor(
         // Start foreground service for screen-off recording
         serviceController.startService()
 
-        // Watch settings while recording: restart the LLM job if the translation
-        // target language changes (only relevant in REAL_TIME_TRANSLATION mode where
-        // the output language drives the system prompt).
-        settingsWatcherJob = viewModelScope.launch {
-            settingsRepository.getSettings().collect { settings ->
-                val newTarget = currentOutputLanguage ?: settings.translationTargetLanguage
-                if (currentRecordingMode == RecordingMode.REAL_TIME_TRANSLATION
-                    && newTarget != activeTranslationTarget
-                    && _uiState.value.isRecording
-                ) {
-                    Log.i(TAG, "Translation target changed ($activeTranslationTarget → $newTarget), restarting LLM job")
-                    delay(500L) // debounce rapid consecutive settings changes
-                    activeTranslationTarget = newTarget
-                    restartInsightsJob(
-                        sharedSttStream = activeSharedSttStream ?: return@collect,
-                        mode = currentRecordingMode,
-                        inputLanguage = currentInputLanguage,
-                        outputLanguage = newTarget
-                    )
-                }
-            }
+        // Interpretation translates each completed utterance sequentially. The worker
+        // and its unbounded queue survive a pause, so it is created only once per session.
+        if (currentRecordingMode == RecordingMode.REAL_TIME_TRANSLATION && translationJob == null) {
+            startTranslationWorker()
         }
 
         // Collect transcription segments for UI display AND persistence
         // DEDUPLICATION: Partial segments (isComplete=false) replace the current one
         // Complete segments (isComplete=true) are added to the completed list and saved to DB
+        transcriptionJob?.cancel()
         transcriptionJob = viewModelScope.launch {
             sharedSttStream.collect { segment ->
                 Log.d(TAG, "Received segment: ${segment.text} (complete=${segment.isComplete})")
@@ -509,6 +601,8 @@ class MainViewModel @Inject constructor(
                         if (existing.isBlank()) segmentWithSession.text
                         else "$existing ${segmentWithSession.text}"
                     }
+                    // Queue the completed utterance for on-device translation.
+                    enqueueTranslation(segmentWithSession)
                     // Clear partial since this segment is now complete
                     _uiState.update { state ->
                         state.copy(currentPartialSegment = null)
@@ -524,8 +618,11 @@ class MainViewModel @Inject constructor(
 
         // Collect LLM insights from the SAME shared stream AND persist them.
         // For END_OF_SESSION strategy, skip the real-time insights job entirely —
-        // the batch pipeline will run after stop.
-        if (currentInsightStrategy == InsightStrategy.REAL_TIME) {
+        // the batch pipeline will run after stop. Restarted after a pause.
+        if (currentRecordingMode != RecordingMode.REAL_TIME_TRANSLATION
+            && currentInsightStrategy == InsightStrategy.REAL_TIME
+        ) {
+            insightsJob?.cancel()
             insightsJob = viewModelScope.launch {
                 syncSttLlmUseCase(
                     transcriptionFlow = sharedSttStream,
@@ -561,47 +658,121 @@ class MainViewModel @Inject constructor(
                     }
             }
         } else {
-            Log.i(TAG, "END_OF_SESSION strategy: skipping real-time LLM job")
+            Log.i(TAG, "END_OF_SESSION strategy or interpretation mode: skipping real-time LLM job")
         }
 
         Log.i(TAG, "STT streaming started with service support - screen-off recording enabled")
     }
 
     /**
-     * Cancel the current LLM insights job and restart it with new parameters.
+     * Starts the sequential translation worker for the current recording.
      *
-     * Called mid-session when settings that affect LLM inference change
-     * (e.g. translation target language). Audio/STT jobs are NOT touched.
+     * The queue is unbounded but only receives complete VAD segments, so its size
+     * is bounded by speech rate. Processing serially keeps the single llama.cpp
+     * context consistent and preserves utterance order.
      */
-    private fun restartInsightsJob(
-        sharedSttStream: SharedFlow<TranscriptionSegment>,
-        mode: RecordingMode,
-        inputLanguage: String,
-        outputLanguage: String?
-    ) {
-        insightsJob?.cancel()
-        insightsJob = viewModelScope.launch {
-            syncSttLlmUseCase(
-                transcriptionFlow = sharedSttStream,
-                sessionId = sessionId,
-                mode = mode,
-                inputLanguage = inputLanguage,
-                outputLanguage = outputLanguage,
-                topic = currentTopic
-            )
-                .catch { e ->
-                    Log.e(TAG, "LLM error after job restart", e)
-                    _uiState.update { it.copy(llmStatus = "LLM error: ${e.message}") }
+    private fun startTranslationWorker() {
+        translationQueue?.close()
+        val queue = Channel<TranscriptionSegment>(Channel.UNLIMITED)
+        translationQueue = queue
+        translationFailureReported = false
+        _uiState.update { it.copy(pendingTranslations = 0, pendingTranslationIds = emptySet()) }
+
+        translationJob = viewModelScope.launch {
+            // No-op when the model is already resident; loads it on demand when a
+            // download completed after the session was initialized.
+            llmRepository.reloadModel()
+                .onFailure { e ->
+                    Log.e(TAG, "Translation model unavailable: ${e.message}")
+                    reportTranslationFailure()
                 }
-                .collect { insight ->
-                    Log.d(TAG, "Received insight (restarted job): ${insight.content}")
-                    pendingContent.set("")
-                    saveInsightUseCase(insight)
-                        .onFailure { e -> Log.e(TAG, "Failed to save insight: ${e.message}") }
-                        .onSuccess { Log.d(TAG, "Insight saved: ${insight.id}") }
+
+            try {
+                for (segment in queue) {
+                    val expectedTarget = translateSegmentUseCase.resolveTargetLanguage(
+                        translateSegmentUseCase.resolveSourceLanguage(segment),
+                        currentOutputLanguage
+                    )
+                    translateSegmentUseCase(segment, currentOutputLanguage)
+                        .onSuccess { translation ->
+                            if (translation != null) {
+                                transcriptionRepository.updateSegmentTranslation(
+                                    segmentId = segment.id,
+                                    translatedText = translation.text
+                                ).onFailure { e ->
+                                    Log.e(TAG, "Failed to store translation: ${e.message}")
+                                }
+                            } else if (expectedTarget != null) {
+                                // A null translation is expected only when the utterance
+                                // already is in the requested output language.
+                                Log.w(TAG, "Translation returned no text for ${segment.id}")
+                            }
+                        }
+                        .onFailure { e ->
+                            // One timed-out or empty segment must not surface a session-wide
+                            // error banner — the remaining queue can still succeed.
+                            Log.e(TAG, "Translation failed for ${segment.id}: ${e.message}")
+                        }
+
+                    _uiState.update { state ->
+                        state.copy(
+                            pendingTranslations = (state.pendingTranslations - 1).coerceAtLeast(0),
+                            pendingTranslationIds = state.pendingTranslationIds - segment.id
+                        )
+                    }
                 }
+                Log.i(TAG, "Translation queue drained")
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                Log.e(TAG, "Translation worker crashed", e)
+                reportTranslationFailure()
+            } finally {
+                // The worker can end through cancellation or an unexpected error; clear
+                // in-flight markers so no subtitle keeps a permanent spinner.
+                _uiState.update { state ->
+                    state.copy(pendingTranslations = 0, pendingTranslationIds = emptySet())
+                }
+            }
         }
-        Log.i(TAG, "Insights job restarted: mode=$mode, output=$outputLanguage")
+    }
+
+    private fun reportTranslationFailure() {
+        if (translationFailureReported) return
+        translationFailureReported = true
+        _uiState.update { state ->
+            if (state.error != null) state
+            else state.copy(error = "翻译失败：本地模型没有返回有效译文。请重新开始同传再试。")
+        }
+    }
+
+    /**
+     * Queues a completed utterance for translation when interpretation is active
+     * and the LLM is ready. No-op for other modes.
+     */
+    private fun enqueueTranslation(segment: TranscriptionSegment) {
+        if (currentRecordingMode != RecordingMode.REAL_TIME_TRANSLATION) return
+        if (!_uiState.value.isLlmModelAvailable) return
+        if (segment.text.isBlank()) return
+        // VAD fragments that contain only punctuation or a single Latin character
+        // carry no translatable content and reliably make small models return an
+        // empty completion, wasting ~20-40 s of the inference queue.
+        val meaningfulChars = segment.text.count { it.isLetterOrDigit() }
+        val hasHan = segment.text.any { it.code in 0x4E00..0x9FFF }
+        if (meaningfulChars == 0 || (meaningfulChars < 2 && !hasHan)) return
+
+        val queue = translationQueue ?: return
+        val result = queue.trySend(segment)
+        if (result.isSuccess) {
+            _uiState.update { state ->
+                state.copy(
+                    pendingTranslations = state.pendingTranslations + 1,
+                    pendingTranslationIds = state.pendingTranslationIds + segment.id
+                )
+            }
+        } else {
+            Log.w(TAG, "Translation queue closed; dropping segment ${segment.id}")
+        }
     }
 
     /**
@@ -612,21 +783,27 @@ class MainViewModel @Inject constructor(
      * is lost at the tail of a session.
      */
     fun stopStreaming() {
-        if (!_uiState.value.isRecording) {
-            Log.w(TAG, "Not recording")
+        val state = _uiState.value
+        if (!state.isRecording && !state.isPaused) {
+            Log.w(TAG, "Not recording or paused")
             return
         }
 
         // Immediately reflect the stop in the UI so the button responds at once.
         // isFinalizingSession=true blocks back navigation and shows a spinner during
         // the STT drain (up to 3 s) and the optional final LLM insight generation.
-        _uiState.update { it.copy(isRecording = false, isFinalizingSession = true) }
+        _uiState.update {
+            it.copy(isRecording = false, isPaused = false, isFinalizingSession = true)
+        }
+        val pendingTransition = streamTransitionJob
 
         viewModelScope.launch {
+            // If Stop was pressed while a pause was still tearing down the mic,
+            // wait for that teardown before draining and releasing the STT model.
+            pendingTransition?.join()
+
             // Cancel non-essential jobs immediately.
-            settingsWatcherJob?.cancel()
             timerJob?.cancel()
-            settingsWatcherJob = null
             timerJob = null
 
             // Persist total cumulative recording duration before tearing down.
@@ -671,13 +848,28 @@ class MainViewModel @Inject constructor(
             // (the async partial inference may race with and arrive after the flush result).
             _uiState.update { it.copy(currentPartialSegment = null) }
 
+            // Interpretation: drain queued translations (bounded) so the summary sees
+            // the bilingual transcript, then summarize below.
+            val wasInterpretation = currentRecordingMode == RecordingMode.REAL_TIME_TRANSLATION
+            if (wasInterpretation) {
+                translationQueue?.close()
+                translationQueue = null
+                withTimeoutOrNull(40_000L) { translationJob?.join() }
+                // Cancel a segment that overran the drain window and wait for the
+                // flow's cancellation handler to return the engine to Ready before
+                // the summary starts on the same single-threaded dispatcher.
+                withTimeoutOrNull(5_000L) { translationJob?.cancelAndJoin() }
+                translationJob = null
+                _uiState.update { it.copy(pendingTranslations = 0, pendingTranslationIds = emptySet()) }
+            }
+
             // Snapshot pending text BEFORE touching insightsJob (which may clear it).
             // If a periodic inference is actively generating, wait for it to finish so
             // its insight is saved — cancelling it here would silently discard the result.
             // Once the job completes the final insight is skipped to avoid a race on
             // singleThreadDispatcher between the periodic inference cleanup and
             // generateFinalInsightUseCase.
-            val periodicInferenceActive = llmRepository.isGenerating
+            val periodicInferenceActive = !wasInterpretation && llmRepository.isGenerating
             if (periodicInferenceActive) {
                 // Allow the in-flight inference to complete and save its insight.
                 // Poll isGenerating instead of joining insightsJob: insightsJob collects
@@ -709,7 +901,63 @@ class MainViewModel @Inject constructor(
             @Suppress("ExplicitGarbageCollectionCall")
             System.gc()
 
-            if (currentInsightStrategy == InsightStrategy.END_OF_SESSION) {
+            if (wasInterpretation) {
+                // Interpretation: one Chinese summary for the whole session, using the
+                // fresh bilingual rows after the translation drain.
+                val allSegments = transcriptionRepository.getSegmentsBySession(sessionId).first()
+                val willSummarize = _uiState.value.isLlmModelAvailable && allSegments.isNotEmpty()
+                _uiState.update { it.copy(isFinalizingSession = willSummarize) }
+                Log.i(TAG, "Streaming stopped (interpretation), willSummarize=$willSummarize, segments=${allSegments.size}")
+
+                if (willSummarize) {
+                    launch {
+                        llmProcessingServiceController.startProcessing()
+                        try {
+                            generateSessionSummaryUseCase(
+                                segments = allSegments,
+                                sessionId = sessionId,
+                                topic = currentTopic
+                            )
+                                .onFailure { e ->
+                                    Log.e(TAG, "Session summary generation failed: ${e.message}")
+                                    _uiState.update {
+                                        it.copy(error = "总结生成失败：${e.message ?: "未知错误"}")
+                                    }
+                                }
+                                .onSuccess { insight ->
+                                    if (insight != null) {
+                                        saveInsightUseCase(insight)
+                                            .onFailure { e -> Log.e(TAG, "Failed to save summary: ${e.message}") }
+                                            .onSuccess { Log.i(TAG, "Session summary saved: ${insight.id}") }
+                                    } else {
+                                        Log.d(TAG, "Session summary skipped: not enough content")
+                                        _uiState.update {
+                                            it.copy(error = "未能生成总结：本次会话的语音内容不足。")
+                                        }
+                                    }
+                                }
+                        } finally {
+                            _uiState.update { it.copy(isFinalizingSession = false) }
+                            llmProcessingServiceController.stopProcessing()
+                            try {
+                                llmRepository.cleanup()
+                                Log.i(TAG, "LLM resources released after session summary")
+                            } catch (e: Exception) {
+                                Log.e(TAG, "Error releasing LLM resources after summary", e)
+                            }
+                        }
+                    }
+                } else {
+                    _uiState.update { it.copy(isFinalizingSession = false) }
+                    launch {
+                        try {
+                            llmRepository.cleanup()
+                        } catch (e: Exception) {
+                            Log.e(TAG, "Error releasing LLM resources on stop", e)
+                        }
+                    }
+                }
+            } else if (currentInsightStrategy == InsightStrategy.END_OF_SESSION) {
                 // Batch pipeline: analyze entire session after recording stops.
                 val allSegments = _uiState.value.completedSegments
                 val willRunBatch = _uiState.value.isLlmModelAvailable && allSegments.isNotEmpty()
@@ -865,6 +1113,20 @@ class MainViewModel @Inject constructor(
         }
     }
 
+    /**
+     * Permanently delete one generated insight/summary from this session.
+     * The Room flow refreshes the list automatically after deletion.
+     */
+    fun deleteInsight(insightId: String) {
+        viewModelScope.launch {
+            deleteInsightUseCase(insightId)
+                .onFailure { e ->
+                    Log.e(TAG, "Failed to delete insight $insightId", e)
+                    _uiState.update { it.copy(error = "Failed to delete summary: ${e.message}") }
+                }
+        }
+    }
+
     override fun onCleared() {
         super.onCleared()
 
@@ -873,10 +1135,11 @@ class MainViewModel @Inject constructor(
         // viewModelScope's SupervisorJob) BEFORE invoking onCleared(). Any viewModelScope.launch {}
         // here would be a no-op. Use runBlocking for all cleanup that must actually execute.
 
-        // Stop the AudioRecord if recording is still active (e.g. user pressed back mid-session).
+        // Stop the AudioRecord if the session is still active (e.g. user pressed back mid-session).
         // stopRecording() is fast: sets isRecording=false, stops and releases the AudioRecord.
-        if (_uiState.value.isRecording) {
-            Log.i(TAG, "ViewModel cleared while recording - stopping AudioRecord")
+        // A paused session has no AudioRecord, but the service/model teardown still applies.
+        if (_uiState.value.isSessionActive) {
+            Log.i(TAG, "ViewModel cleared while session active - stopping AudioRecord")
             runBlocking {
                 try {
                     stopSttStreamingUseCase()
@@ -905,7 +1168,8 @@ class MainViewModel @Inject constructor(
 
         transcriptionJob?.cancel()
         insightsJob?.cancel()
-        settingsWatcherJob?.cancel()
+        translationJob?.cancel()
+        translationQueue?.close()
         timerJob?.cancel()
     }
 }

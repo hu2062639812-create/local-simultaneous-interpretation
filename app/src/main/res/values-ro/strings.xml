@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Începe</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI procesează înregistrarea dvs.…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Transcrierile mele</string>
     <string name="new_transcription">Transcriere nouă</string>
     <string name="session_unnamed">(Fără nume)</string>
@@ -390,7 +390,7 @@ Redă numai traducerea. Fără explicații, fără etichete, fără prefixe.</st
     <string name="onboarding_languages_subtitle">Disponibile pentru transcriere și traducere</string>
     <string name="onboarding_languages_continue">Continuare</string>
 
-    <string name="onboarding_message_1">HearoPilot ascultă pentru că tu nu trebuie să iei noti.</string>
+    <string name="onboarding_message_1">Local Interpreter ascultă pentru că tu nu trebuie să iei noti.</string>
     <string name="onboarding_message_2">Toată procesarea AI se execută pe dispozitivul tău: nu pleacă niciunul date.</string>
     <string name="onboarding_message_3">Transcrie prelegeri, întâlniri și conversații în timp real.</string>
     <string name="onboarding_message_4">Rezumatele automate te ajută să te concentrezi pe ceea ce conteaza.</string>
@@ -399,8 +399,8 @@ Redă numai traducerea. Fără explicații, fără etichete, fără prefixe.</st
     <string name="onboarding_message_7">Excelent pentru studenți, profesioniști și oricine vorbește.</string>
     <string name="onboarding_message_8">Consultă transcrierea și înțelegerea tău oricând, offline.</string>
     <string name="onboarding_message_9">O atingere pentru a porni, o atingere pentru a opri: e atât de simplu.</string>
-    <string name="onboarding_message_10">Mulțumesc că ai ales HearoPilot.</string>
-    <string name="onboarding_message_11">Folosiți HearoPilot cu un microfon Bluetooth pentru transcriere de la distanță.</string>
+    <string name="onboarding_message_10">Mulțumesc că ai ales Local Interpreter.</string>
+    <string name="onboarding_message_11">Folosiți Local Interpreter cu un microfon Bluetooth pentru transcriere de la distanță.</string>
     <string name="json_field_title">titlu</string>
     <string name="json_field_summary">rezumat</string>
     <string name="json_field_action_items">actiuni</string>

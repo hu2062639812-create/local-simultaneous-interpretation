@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Ibda</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">L-AI qed jipproċessa r-reġistrazzjoni tiegħek…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">It-Traskrizzjonijiet Tiegħi</string>
     <string name="new_transcription">Traskrizzjoni Ġdida</string>
     <string name="session_unnamed">(Bla Isem)</string>
@@ -381,7 +381,7 @@ Agħti t-traduzzjoni biss. L-ebda spjegazzjonijiet, l-ebda tikketti, l-ebda pref
     <string name="onboarding_languages_subtitle">Disponibbli għat-traskrizzjoni u t-traduzzjoni</string>
     <string name="onboarding_languages_continue">Kompli</string>
 
-    <string name="onboarding_message_1">HearoPilot imlisek biex ma jkollok tikteb noti.</string>
+    <string name="onboarding_message_1">Local Interpreter imlisek biex ma jkollok tikteb noti.</string>
     <string name="onboarding_message_2">Il-proċessar tal-AI kollu jaħdem fuq il-ġihalka: l-ebda data ma tħalliha.</string>
     <string name="onboarding_message_3">Traskrivi leħħ, laqgħat u konversazzjonijiet f\'ħin reali.</string>
     <string name="onboarding_message_4">Sommarji awtomatiċi jgħinuk tiffoka fuq dak li verament importa.</string>
@@ -390,8 +390,8 @@ Agħti t-traduzzjoni biss. L-ebda spjegazzjonijiet, l-ebda tikketti, l-ebda pref
     <string name="onboarding_message_7">Perfett għal-istudenti, professionisti u kulħadd li jitkellem.</string>
     <string name="onboarding_message_8">Irrieżamina t-traskrizzjonijiet u l-insights tiegħek fi kwalunque ħin, offline.</string>
     <string name="onboarding_message_9">Fiski wieħed biex tibda, fiski wieħed biex twaqqaf: daqq semplic.</string>
-    <string name="onboarding_message_10">Grazzi li għażilt HearoPilot.</string>
-    <string name="onboarding_message_11">Uża HearoPilot ma\' mikrofonu Bluetooth biex ttraskrivi mill-bogħod.</string>
+    <string name="onboarding_message_10">Grazzi li għażilt Local Interpreter.</string>
+    <string name="onboarding_message_11">Uża Local Interpreter ma\' mikrofonu Bluetooth biex ttraskrivi mill-bogħod.</string>
     <string name="json_field_title">titlu</string>
     <string name="json_field_summary">riasunti</string>
     <string name="json_field_action_items">azzjonijiet</string>

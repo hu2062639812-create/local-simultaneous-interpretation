@@ -235,7 +235,20 @@ class LlmRepositoryImpl @Inject constructor(
 
     override fun endInference() { isGenerating = false }
 
-    override fun generateInsight(text: String, systemPrompt: String?, maxTokens: Int): Flow<String> = flow {
+    override fun generateInsight(text: String, systemPrompt: String?, maxTokens: Int): Flow<String> =
+        runInference(buildPrompt(text), systemPrompt, maxTokens)
+
+    override fun generateRaw(
+        prompt: String,
+        systemPrompt: String,
+        maxTokens: Int
+    ): Flow<String> = runInference(prompt, systemPrompt, maxTokens)
+
+    private fun runInference(
+        prompt: String,
+        systemPrompt: String?,
+        maxTokens: Int
+    ): Flow<String> = flow {
         // Stateless inference: reset context before each call so the system
         // prompt is always the dominant signal. The KV-cache clear + system
         // prompt re-encoding (~200 tokens) costs ~50-100ms — negligible vs
@@ -249,12 +262,17 @@ class LlmRepositoryImpl @Inject constructor(
         if (systemPrompt != null) {
             lastSystemPrompt = systemPrompt
         }
-        llmDataSource.updateSystemPrompt(lastSystemPrompt ?: "")
+        // Fail fast: when the engine cannot accept a system prompt (stale state,
+        // failed model load), collecting the token flow would hang or fail later
+        // with a less useful error.
+        llmDataSource.updateSystemPrompt(lastSystemPrompt ?: "").onFailure { e ->
+            Log.e(TAG, "Failed to apply system prompt: ${e.message}")
+            throw e
+        }
 
-        val prompt = buildPrompt(text)
-        val estimatedTokens = text.length / 4
+        val estimatedTokens = prompt.length / 4
         val threadsDesc = if (nThreadsHint > 0) "$nThreadsHint (conservative)" else "auto"
-        Log.d(TAG, "=== LLM INFERENCE === threads=$threadsDesc inputChars=${text.length}")
+        Log.d(TAG, "=== LLM INFERENCE === threads=$threadsDesc inputChars=${prompt.length}")
         Log.d(TAG, "System prompt:\n${lastSystemPrompt ?: "(none)"}")
         Log.d(TAG, "User prompt:\n$prompt")
         Log.d(TAG, "Tokens: ~$estimatedTokens input + $maxTokens output budget")

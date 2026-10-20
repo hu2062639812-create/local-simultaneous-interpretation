@@ -4,8 +4,6 @@
     alias(libs.plugins.jetbrains.kotlin.plugin.compose)
     alias(libs.plugins.hilt.android)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.google.services)
-    alias(libs.plugins.firebase.crashlytics)
 }
 
 kotlin {
@@ -17,11 +15,11 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.hearopilot.app"
+        applicationId = "com.localinterpreter.app"
         minSdk = 30
         targetSdk = 35
-        versionCode = 20260611
-        versionName = "1.32.03"
+        versionCode = 20261023
+        versionName = "1.33.00"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -65,9 +63,6 @@ android {
         // keeping .so files inside the APK where dlopen() cannot find them.
         jniLibs {
             useLegacyPackaging = true
-            // lib-llama-android bundles libdatastore_shared_counter.so; Firebase pulls DataStore
-            // as a transitive dependency which also ships the same .so — pick one copy.
-            pickFirsts += "lib/arm64-v8a/libdatastore_shared_counter.so"
         }
     }
 }
@@ -111,11 +106,6 @@ dependencies {
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)
-
-    // Firebase
-    implementation(platform("com.google.firebase:firebase-bom:33.7.0"))
-    implementation("com.google.firebase:firebase-analytics")
-    implementation("com.google.firebase:firebase-crashlytics")
 
     // Testing
     testImplementation(libs.junit)

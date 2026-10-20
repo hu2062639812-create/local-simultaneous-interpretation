@@ -31,7 +31,11 @@ class SttRepositoryImpl @Inject constructor(
                     sessionId = "", // Temporary - MainViewModel will replace with actual sessionId
                     text = result.text,
                     timestamp = System.currentTimeMillis(),
-                    isComplete = result.isComplete
+                    isComplete = result.isComplete,
+                    detectedLanguage = result.language
+                        ?.trim()
+                        ?.trim('<', '|', '>')
+                        ?.takeIf { it.isNotBlank() }
                 )
             }
     }

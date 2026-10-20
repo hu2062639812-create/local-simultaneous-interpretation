@@ -26,15 +26,17 @@ import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.OnboardingStep
 import com.hearopilot.app.ui.components.OnboardingPageIndicator
 import com.hearopilot.app.ui.icons.AppIcons
+import com.hearopilot.app.ui.locale.AppLanguage
 
-private const val ONBOARDING_PAGE_COUNT = 4
+private const val ONBOARDING_PAGE_COUNT = 5
 
 /** Maps an [OnboardingStep] to its zero-based dot-indicator page index. */
 private fun OnboardingStep.pageIndex(): Int = when (this) {
-    OnboardingStep.WELCOME -> 0
-    OnboardingStep.LANGUAGES -> 1
-    OnboardingStep.STT_DOWNLOAD -> 2
-    OnboardingStep.LLM_DOWNLOAD -> 3
+    OnboardingStep.INTERFACE_LANGUAGE -> 0
+    OnboardingStep.WELCOME -> 1
+    OnboardingStep.LANGUAGES -> 2
+    OnboardingStep.STT_DOWNLOAD -> 3
+    OnboardingStep.LLM_DOWNLOAD -> 4
     OnboardingStep.COMPLETED -> -1  // No indicator on completed step
 }
 
@@ -62,7 +64,8 @@ fun OnboardingScreen(
     onStartLlm: () -> Unit,
     onRetryLlm: () -> Unit,
     onSkipLlm: () -> Unit,
-    onGoBack: () -> Unit
+    onGoBack: () -> Unit,
+    onInterfaceLanguageSelected: (AppLanguage) -> Unit
 ) {
     // Track previous step to determine slide direction
     var previousStep by remember { mutableStateOf(currentStep) }
@@ -86,6 +89,9 @@ fun OnboardingScreen(
             previousStep = step
 
             when (step) {
+                OnboardingStep.INTERFACE_LANGUAGE -> InterfaceLanguageScreen(
+                    onLanguageSelected = onInterfaceLanguageSelected
+                )
                 OnboardingStep.WELCOME -> WelcomeScreen(onGetStarted = onGetStarted)
                 OnboardingStep.LANGUAGES -> SupportedLanguagesScreen(onContinue = onContinue)
                 OnboardingStep.STT_DOWNLOAD -> SttDownloadScreen(

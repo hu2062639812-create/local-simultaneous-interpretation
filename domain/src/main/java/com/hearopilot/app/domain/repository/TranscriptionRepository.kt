@@ -124,6 +124,15 @@ interface TranscriptionRepository {
     suspend fun updateSegmentText(segmentId: String, newText: String): Result<Unit>
 
     /**
+     * Attach an on-device translation to an existing segment.
+     *
+     * @param segmentId The segment ID to update
+     * @param translatedText Translated text in the target language
+     * @return Result indicating success or failure
+     */
+    suspend fun updateSegmentTranslation(segmentId: String, translatedText: String): Result<Unit>
+
+    /**
      * Get all segments for a specific session ordered by timestamp.
      *
      * @param sessionId The session ID
@@ -169,6 +178,16 @@ interface TranscriptionRepository {
      * @return Result indicating success or failure
      */
     suspend fun updateInsightTitle(insightId: String, newTitle: String?): Result<Unit>
+
+    /**
+     * Delete a single insight.
+     *
+     * Updates the owning session's lastModifiedAt timestamp.
+     *
+     * @param insightId The insight ID to delete
+     * @return Result indicating success or failure
+     */
+    suspend fun deleteInsight(insightId: String): Result<Unit>
 
     /**
      * Get all insights for a specific session ordered by timestamp.

@@ -11,11 +11,15 @@
  * @property text The transcribed text content
  * @property timestamp Unix timestamp (milliseconds) when this segment was created
  * @property isComplete Whether this segment represents a complete utterance (speech ended)
+ * @property translatedText On-device translation of [text], null while pending or unavailable
+ * @property detectedLanguage Language detected by the ASR model (e.g. "zh", "en")
  */
 data class TranscriptionSegment(
     val id: String,
     val sessionId: String,
     val text: String,
     val timestamp: Long,
-    val isComplete: Boolean
+    val isComplete: Boolean,
+    val translatedText: String? = null,
+    val detectedLanguage: String? = null
 )

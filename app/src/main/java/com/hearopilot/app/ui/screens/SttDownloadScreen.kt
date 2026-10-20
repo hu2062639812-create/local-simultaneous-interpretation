@@ -26,8 +26,8 @@ import com.hearopilot.app.ui.components.DownloadOnboardingCarousel
 import com.hearopilot.app.ui.components.GradientButton
 import com.hearopilot.app.domain.model.DownloadState
 
-/** CC BY 4.0 license URL for the Parakeet TDT model. */
-private const val STT_LICENSE_URL = "https://creativecommons.org/licenses/by/4.0/"
+/** MIT license URL for the SenseVoice Small model. */
+private const val STT_LICENSE_URL = "https://github.com/modelscope/FunASR/blob/main/LICENSE"
 
 /** Vertical overlap between the hero and the content sheet, in dp. */
 private val CONTENT_SHEET_OVERLAP = 28.dp
@@ -375,7 +375,7 @@ private fun SttIdleLayout(onStartDownload: () -> Unit) {
 
 /**
  * Tappable license row shown in the STT model info card.
- * Opens the Creative Commons CC BY 4.0 license in the system browser.
+ * Opens the MIT license for SenseVoice in the system browser.
  */
 @Composable
 private fun SttLicenseLinkRow() {
@@ -395,7 +395,7 @@ private fun SttLicenseLinkRow() {
             contentPadding = PaddingValues(0.dp)
         ) {
             Text(
-                text = "CC BY 4.0 · NVIDIA",
+                text = "MIT · FunAudioLLM",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = BrandPrimary

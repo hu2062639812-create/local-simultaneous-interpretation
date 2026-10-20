@@ -50,11 +50,15 @@ static common_sampler                   * g_sampler;
 static bool                               g_model_has_mrope = false;
 
 // Whether the loaded model's chat template should emit extended thinking tokens.
-// Set to false for models whose template supports enable_thinking (currently Gemma 4)
-// so the Jinja template omits <|think|> from the system turn and automatically
-// appends the thinking-suppression prefix in the generation prompt.
-// For all other models the parameter is a no-op in their template.
-static bool                               g_model_enable_thinking = true;
+// Thinking is disabled for every supported model. Templates that understand
+// `enable_thinking` (Qwen3.5, Gemma 4) then append the empty thinking block
+// themselves; templates that do not reference the flag simply ignore it.
+//
+// Qwen3.5 specifically renders `<think>\n\n</think>\n\n` into the assistant
+// generation prompt when this is false. That is the only correct suppression
+// point: pre-filling an extra block from native code produces nested <think>
+// tags, which makes the 0.8B model loop in thinking mode and emit no answer.
+static bool                               g_model_enable_thinking = false;
 
 extern "C"
 JNIEXPORT void JNICALL
@@ -183,14 +187,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_prepare(JNIEnv * /*env*/, jobje
     g_model_has_mrope = (rope_type == LLAMA_ROPE_TYPE_MROPE || rope_type == LLAMA_ROPE_TYPE_IMROPE);
     LOGi("prepare: rope_type=%d has_mrope=%s", (int) rope_type, g_model_has_mrope ? "true" : "false");
 
-    // Detect models whose chat template supports enable_thinking (currently Gemma 4).
-    // For these models we disable thinking via enable_thinking=false so the Jinja template
-    // suppresses reasoning tokens automatically, keeping the full output budget for JSON.
+    // Thinking mode is always disabled (see g_model_enable_thinking). The Jinja
+    // template for Qwen3.5 / Gemma 4 turns this into the proper empty thinking
+    // block in the generation prompt; other templates ignore the parameter.
     char arch_buf[32] = {};
     const int arch_len = llama_model_meta_val_str(g_model, "general.architecture", arch_buf, sizeof(arch_buf));
-    const std::string arch_str = (arch_len > 0) ? std::string(arch_buf) : "";
-    g_model_enable_thinking = (arch_str != "gemma4");
-    LOGi("prepare: arch=%s enable_thinking=%s", arch_buf, g_model_enable_thinking ? "true" : "false");
+    LOGi("prepare: arch=%s enable_thinking=false", arch_buf);
 
     return 0;
 }
@@ -529,7 +531,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processSystemPrompt(
     // Format system prompt if applicable
     const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
     if (has_chat_template) {
-        formatted_system_prompt = chat_add_and_format(ROLE_SYSTEM, incoming_system_prompt);
+        try {
+            formatted_system_prompt = chat_add_and_format(ROLE_SYSTEM, incoming_system_prompt);
+        } catch (const std::exception &e) {
+            LOGe("%s: failed to apply chat template to system prompt: %s", __func__, e.what());
+            return 3;
+        }
     }
 
     // The template may defer the system turn (empty result) when it cannot be rendered without a
@@ -608,46 +615,18 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     // Format user prompt if applicable
     const bool has_chat_template = common_chat_templates_was_explicit(g_chat_templates.get());
     if (has_chat_template) {
-        formatted_user_prompt = chat_add_and_format(ROLE_USER, user_prompt);
+        try {
+            formatted_user_prompt = chat_add_and_format(ROLE_USER, user_prompt);
+        } catch (const std::exception &e) {
+            LOGe("%s: failed to apply chat template to user prompt: %s", __func__, e.what());
+            return 3;
+        }
     }
 
-    // -------------------------------------------------------------------------
-    // WORKAROUND: disable extended thinking for hybrid SSM+attention models
-    // (currently Qwen3.5) that default to "thinking mode".
-    //
-    // Background: Qwen3.5 and similar hybrid models emit a <think>...</think>
-    // reasoning block before every response by default. This block easily
-    // consumes 400-800+ tokens of the output budget, leaving too few tokens
-    // for the actual JSON payload and causing truncated or empty insights.
-    //
-    // How this works: by pre-filling the assistant turn with an *empty* think
-    // block (<think>\n\n</think>\n\n), the model sees those tokens as already
-    // generated and skips reasoning entirely, proceeding directly to the JSON
-    // response. This is a token-level trick — the model genuinely does NOT
-    // reason; it is not a UI filter.
-    //
-    // Why g_model_has_mrope is the right signal: only Qwen3.5-family models
-    // use LLAMA_ROPE_TYPE_IMROPE (40), and those are exactly the models that
-    // support / default to thinking mode. Standard attention-only models
-    // (Gemma3 → NEOX=2, Llama → NORM=0) are unaffected.
-    //
-    // Note: Gemma 4 also has thinking mode but uses a different token format
-    // (<|channel>thought ... <channel|>) and is handled in the block below.
-    //
-    // Upstream reference: llama.cpp --reasoning off / enable_thinking=false in
-    // the Jinja chat template (models/templates/Qwen-Qwen3-0.6B.jinja:82-84).
-    // -------------------------------------------------------------------------
-    if (g_model_has_mrope && has_chat_template) {
-        const std::string empty_think_prefix = "<think>\n\n</think>\n\n";
-        formatted_user_prompt += empty_think_prefix;
-        LOGi("%s: M-RoPE thinking model — pre-filled empty <think> block to suppress reasoning",
-             __func__);
-    }
-
-    // For models with enable_thinking support (e.g. Gemma 4) the suppression is handled
-    // transparently in chat_add_and_format via g_model_enable_thinking=false, which
-    // makes the Jinja template append the thinking-suppression prefix automatically.
-    // No additional step is needed here.
+    // Thinking suppression is handled entirely by the Jinja template
+    // (enable_thinking=false → Qwen3.5 emits "<think>\n\n</think>\n\n").
+    // Do NOT pre-fill another block here: that creates nested <think> tags
+    // and sends the 0.8B model into a reasoning loop with no final answer.
 
     // Decode formatted user prompts
     auto user_tokens = common_tokenize(g_context, formatted_user_prompt, has_chat_template, has_chat_template);
@@ -656,11 +635,12 @@ Java_com_arm_aichat_internal_InferenceEngineImpl_processUserPrompt(
     }
 
     // Ensure user prompt doesn't exceed the context size by truncating if necessary.
-    const int user_prompt_size = (int) user_tokens.size();
+    int user_prompt_size = (int) user_tokens.size();
     const int max_batch_size = DEFAULT_CONTEXT_SIZE - OVERFLOW_HEADROOM;
     if (user_prompt_size > max_batch_size) {
         const int skipped_tokens = user_prompt_size - max_batch_size;
         user_tokens.resize(max_batch_size);
+        user_prompt_size = (int) user_tokens.size();
         LOGw("%s: User prompt too long! Skipped %d tokens!", __func__, skipped_tokens);
     }
 

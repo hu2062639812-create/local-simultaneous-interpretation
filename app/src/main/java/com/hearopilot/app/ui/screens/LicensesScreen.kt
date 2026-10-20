@@ -27,7 +27,7 @@ import com.hearopilot.app.ui.ui.theme.BrandPrimary
 /**
  * Screen listing all open-source licenses and AI model attributions.
  *
- * Gemma and Parakeet cards are expanded by default because their licenses
+ * Qwen and SenseVoice cards are expanded by default because their licenses
  * impose the strongest attribution obligations.
  */
 @OptIn(ExperimentalMaterial3Api::class)

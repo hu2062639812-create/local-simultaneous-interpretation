@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Sākt</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI apstrādā jūsu ieraksту…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Manas transkripcijas</string>
     <string name="new_transcription">Jauna transkripcija</string>
     <string name="session_unnamed">(Bez nosaukuma)</string>
@@ -381,7 +381,7 @@ Izvadiet tikai tulkojumu. Nav paskaidrojumu, nav etiķešu, nav prefiksu.</strin
     <string name="onboarding_languages_subtitle">Pieejamas transkribēšanai un tulkošanai</string>
     <string name="onboarding_languages_continue">Turpināt</string>
 
-    <string name="onboarding_message_1">HearoPilot klausās, lai jums nebūtu jāveic piezīmes.</string>
+    <string name="onboarding_message_1">Local Interpreter klausās, lai jums nebūtu jāveic piezīmes.</string>
     <string name="onboarding_message_2">Viss AI apstrāde notiek jūsu ierīcē: dati neatstāj.</string>
     <string name="onboarding_message_3">Transkribējiet lekcijas, sanāksmes un sarunas reāllaikā.</string>
     <string name="onboarding_message_4">Automātiskie kopsavilkumi palīdz fokusēties uz visvairāk svarīgo.</string>
@@ -390,8 +390,8 @@ Izvadiet tikai tulkojumu. Nav paskaidrojumu, nav etiķešu, nav prefiksu.</strin
     <string name="onboarding_message_7">Lieliski studentiem, profesionāļiem un ikvienam, kas runā.</string>
     <string name="onboarding_message_8">Pārskatiet savas transkripcijas un ieskatus jebkurā brīdī, bezsaistē.</string>
     <string name="onboarding_message_9">Viena pieskaršanās sākt, viena pieskaršanās apturēt: tik vienkārši.</string>
-    <string name="onboarding_message_10">Paldies, ka izvēlējāties HearoPilot.</string>
-    <string name="onboarding_message_11">Izmantojiet HearoPilot ar Bluetooth mikrofonu, lai transkribētu no attāluma.</string>
+    <string name="onboarding_message_10">Paldies, ka izvēlējāties Local Interpreter.</string>
+    <string name="onboarding_message_11">Izmantojiet Local Interpreter ar Bluetooth mikrofonu, lai transkribētu no attāluma.</string>
     <string name="json_field_title">virsraksts</string>
     <string name="json_field_summary">kasarizinas</string>
     <string name="json_field_action_items">darbibas</string>

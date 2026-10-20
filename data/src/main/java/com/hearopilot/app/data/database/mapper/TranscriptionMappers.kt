@@ -74,7 +74,9 @@ fun TranscriptionSegmentEntity.toDomain(): TranscriptionSegment {
         sessionId = sessionId,
         text = text,
         timestamp = timestamp,
-        isComplete = isComplete
+        isComplete = isComplete,
+        translatedText = translatedText,
+        detectedLanguage = detectedLanguage
     )
 }
 
@@ -87,7 +89,9 @@ fun TranscriptionSegment.toEntity(): TranscriptionSegmentEntity {
         sessionId = sessionId,
         text = text,
         timestamp = timestamp,
-        isComplete = isComplete
+        isComplete = isComplete,
+        translatedText = translatedText,
+        detectedLanguage = detectedLanguage
     )
 }
 

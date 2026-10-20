@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Indítás</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">Az AI feldolgozza a felvételt…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Átírásaim</string>
     <string name="new_transcription">Új átírás</string>
     <string name="session_unnamed">(Névtelen)</string>
@@ -391,7 +391,7 @@ Csak a fordítást adja ki. Magyarázat, felirat és előtag nélkül.</string>
     <string name="onboarding_languages_continue">Folytatás</string>
 
     <!-- Onboarding Messages -->
-    <string name="onboarding_message_1">A HearoPilot hallgat, így nem kell jegyzeteket készítenie.</string>
+    <string name="onboarding_message_1">A Local Interpreter hallgat, így nem kell jegyzeteket készítenie.</string>
     <string name="onboarding_message_2">Az összes MI-feldolgozás az eszközön történik: az adatok soha nem hagyják el.</string>
     <string name="onboarding_message_3">Transkribálja a lect, értekezleteket és beszélgetéseket valós időben.</string>
     <string name="onboarding_message_4">Az automatikus összefoglalók segítik a legfontosabbra való összpontosítást.</string>
@@ -400,8 +400,8 @@ Csak a fordítást adja ki. Magyarázat, felirat és előtag nélkül.</string>
     <string name="onboarding_message_7">Nagyszerű diákoknak, szakembereknek és mindenkinek, aki beszél.</string>
     <string name="onboarding_message_8">Tekintse meg átírásait és meglátásait bármikor, offline-ban.</string>
     <string name="onboarding_message_9">Egy koppintás a kezdéshez, egy koppintás a leállításhoz: olyan egyszerű.</string>
-    <string name="onboarding_message_10">Köszönjük, hogy a HearoPilotot választotta.</string>
-    <string name="onboarding_message_11">Használja a HearoPilotot Bluetooth mikrofon segítségével a távolból való átíráshoz.</string>
+    <string name="onboarding_message_10">Köszönjük, hogy a Local Interpreterot választotta.</string>
+    <string name="onboarding_message_11">Használja a Local Interpreterot Bluetooth mikrofon segítségével a távolból való átíráshoz.</string>
     <string name="json_field_title">cim</string>
     <string name="json_field_summary">osszefoglalo</string>
     <string name="json_field_action_items">tenyek</string>

@@ -268,7 +268,13 @@ internal class InferenceEngineImpl private constructor(
 
             processUserPrompt(message, predictLength).let { result ->
                 if (result != 0) {
-                    Log.e(TAG, "Failed to process user prompt: $result")
+                    // A failed prompt prefill must not poison the state machine: without
+                    // this reset every later setSystemPrompt/sendUserPrompt would throw
+                    // until the model is reloaded, silently killing all translations and
+                    // the end-of-session summary.
+                    Log.e(TAG, "Failed to process user prompt: $result — resetting engine state")
+                    _readyForSystemPrompt = true
+                    _state.value = InferenceEngine.State.ModelReady
                     return@flow
                 }
             }

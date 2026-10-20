@@ -1,5 +1,7 @@
 ﻿package com.hearopilot.app.ui
 
+import android.app.Activity
+import android.content.Context
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -27,6 +29,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
@@ -37,6 +40,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import androidx.navigation.NavType
 import com.hearopilot.app.ui.ui.theme.LibellulaTheme
+import com.hearopilot.app.ui.locale.AppLocale
 import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.ThemeMode
 import com.hearopilot.app.domain.model.OnboardingStep
@@ -51,6 +55,10 @@ const val TAG = "sherpa-onnx-sim-asr"
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+
+    override fun attachBaseContext(base: Context) {
+        super.attachBaseContext(AppLocale.wrap(base))
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -110,6 +118,7 @@ class MainActivity : ComponentActivity() {
 fun LibellulaApp() {
     val navController = rememberNavController()
     val setupViewModel: SetupViewModel = hiltViewModel()
+    val context = LocalContext.current
 
     val isOnboardingComplete by setupViewModel.isOnboardingComplete.collectAsStateWithLifecycle()
     val currentStep by setupViewModel.currentStep.collectAsStateWithLifecycle()
@@ -155,7 +164,13 @@ fun LibellulaApp() {
                 onStartLlm = { setupViewModel.startLlmDownload() },
                 onRetryLlm = { setupViewModel.retryLlmDownload() },
                 onSkipLlm = { setupViewModel.skipLlmDownload() },
-                onGoBack = { setupViewModel.goToPreviousStep() }
+                onGoBack = { setupViewModel.goToPreviousStep() },
+                onInterfaceLanguageSelected = { language ->
+                    AppLocale.set(context, language)
+                    setupViewModel.onInterfaceLanguageSelected(language.storageKey)
+                    // Recreate so attachBaseContext() re-resolves every string resource.
+                    (context as? Activity)?.recreate()
+                }
             )
         }
 

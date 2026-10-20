@@ -17,6 +17,7 @@ object AppIcons {
     val Close: ImageVector get() = Icons.Outlined.Close
     val Settings: ImageVector get() = Icons.Outlined.Settings
     val Delete: ImageVector get() = Icons.Outlined.Delete
+    val Copy: ImageVector get() = Icons.Outlined.ContentCopy
     val Share: ImageVector get() = Icons.Outlined.Share
     val Download: ImageVector get() = Icons.Outlined.Download
     val Upload: ImageVector get() = Icons.Outlined.Upload

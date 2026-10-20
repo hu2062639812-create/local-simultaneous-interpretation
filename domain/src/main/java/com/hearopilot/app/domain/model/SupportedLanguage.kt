@@ -22,11 +22,12 @@ data class SupportedLanguage(
  * Add new languages here; the UI and LLM layer pick them up automatically.
  *
  * Locale codes match the app's res/values-XX folders:
- * en, bg, cs, da, de, el, es, et, fi, fr, hr, hu, it, lt, lv, mt, nl, pl, pt, ro, ru, sk, sl, sv, uk
+ * en, zh, bg, cs, da, de, el, es, et, fi, fr, hr, hu, it, lt, lv, mt, nl, pl, pt, ro, ru, sk, sl, sv, uk
  */
 object SupportedLanguages {
 
     val ALL: List<SupportedLanguage> = listOf(
+        SupportedLanguage("zh", "Simplified Chinese", "简体中文"),
         SupportedLanguage("bg", "Bulgarian",   "Български"),
         SupportedLanguage("hr", "Croatian",    "Hrvatski"),
         SupportedLanguage("cs", "Czech",       "Čeština"),

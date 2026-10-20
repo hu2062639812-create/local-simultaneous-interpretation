@@ -417,18 +417,20 @@ class SherpaOnnxDataSource(
                             // Hold decodeMutex for the entire stream lifecycle: createStream()
                             // accesses the recognizer's shared ONNX session just like decode(),
                             // so releaseModel() must not free the native heap between the two.
-                            val trimmedText = decodeMutex.withLock {
+                            val recognition = decodeMutex.withLock {
                                 val r = activeRecognizer ?: return@withLock null
                                 val stream = r.createStream()
                                 stream.acceptWaveform(audioSegment, SAMPLE_RATE_HZ)
                                 r.decode(stream)
-                                val result = r.getResult(stream)
+                                val asrResult = r.getResult(stream)
                                 stream.release()
-                                result.text.trim().takeIf { it.isNotBlank() }
+                                asrResult.text.trim().takeIf { it.isNotBlank() }?.let { text ->
+                                    RecognitionResult(text, isComplete = true, language = asrResult.lang)
+                                }
                             }
-                            if (trimmedText != null) {
-                                send(RecognitionResult(trimmedText, isComplete = true))
-                                Log.d(TAG, "Forced split after ${speechElapsedSamples / SAMPLE_RATE_HZ}s: ${trimmedText.take(50)}")
+                            if (recognition != null) {
+                                send(recognition)
+                                Log.d(TAG, "Forced split after ${speechElapsedSamples / SAMPLE_RATE_HZ}s: ${recognition.text.take(50)} lang=${recognition.language}")
                             }
                         }
                     } catch (e: Exception) {
@@ -471,21 +473,23 @@ class SherpaOnnxDataSource(
                                 // Hold decodeMutex for the entire stream lifecycle (see forced-split
                                 // comment above): createStream() and decode() both touch the ONNX
                                 // InferenceSession; releaseModel() must not run between them.
-                                val trimmedText = decodeMutex.withLock {
+                                val recognition = decodeMutex.withLock {
                                     val r = activeRecognizer ?: return@withLock null
                                     val stream = r.createStream()
                                     stream.acceptWaveform(audioSnapshot, SAMPLE_RATE_HZ)
                                     r.decode(stream)
-                                    val result = r.getResult(stream)
+                                    val asrResult = r.getResult(stream)
                                     stream.release()
-                                    result.text.trim().takeIf { it.isNotBlank() }
+                                    asrResult.text.trim().takeIf { it.isNotBlank() }?.let { text ->
+                                        RecognitionResult(text, isComplete = false, language = asrResult.lang)
+                                    }
                                 }
                                 val inferenceLatency = System.currentTimeMillis() - inferenceStart
-                                metrics.recordInference(inferenceLatency, success = trimmedText != null)
-                                if (trimmedText != null) {
-                                    send(RecognitionResult(trimmedText, isComplete = false))
+                                metrics.recordInference(inferenceLatency, success = recognition != null)
+                                if (recognition != null) {
+                                    send(recognition)
                                     Log.d(TAG, "Partial result (${inferenceLatency}ms, " +
-                                            "$snapshotNewSamples new samples): ${trimmedText.take(50)}")
+                                            "$snapshotNewSamples new samples): ${recognition.text.take(50)}")
                                 }
                             } else {
                                 val inferenceLatency = System.currentTimeMillis() - inferenceStart
@@ -512,20 +516,22 @@ class SherpaOnnxDataSource(
                             // Hold decodeMutex for the entire stream lifecycle (see forced-split
                             // comment above): createStream() and decode() both touch the ONNX
                             // InferenceSession; releaseModel() must not run between them.
-                            val trimmedText = decodeMutex.withLock {
+                            val recognition = decodeMutex.withLock {
                                 val r = activeRecognizer ?: return@withLock null
                                 val stream = r.createStream()
                                 stream.acceptWaveform(vadSegment.samples, SAMPLE_RATE_HZ)
                                 r.decode(stream)
-                                val result = r.getResult(stream)
+                                val asrResult = r.getResult(stream)
                                 stream.release()
-                                result.text.trim().takeIf { it.isNotBlank() }
+                                asrResult.text.trim().takeIf { it.isNotBlank() }?.let { text ->
+                                    RecognitionResult(text, isComplete = true, language = asrResult.lang)
+                                }
                             }
                             val segmentLatency = System.currentTimeMillis() - segmentStart
-                            metrics.recordInference(segmentLatency, success = trimmedText != null)
-                            if (trimmedText != null) {
-                                send(RecognitionResult(trimmedText, isComplete = true))
-                                Log.d(TAG, "Final segment (${segmentLatency}ms): ${trimmedText.take(50)}")
+                            metrics.recordInference(segmentLatency, success = recognition != null)
+                            if (recognition != null) {
+                                send(recognition)
+                                Log.d(TAG, "Final segment (${segmentLatency}ms): ${recognition.text.take(50)} lang=${recognition.language}")
                             }
                         }
                         vad.pop()
@@ -560,18 +566,20 @@ class SherpaOnnxDataSource(
                         // Hold decodeMutex for the entire stream lifecycle (see forced-split
                         // comment above): createStream() and decode() both touch the ONNX
                         // InferenceSession; releaseModel() must not run between them.
-                        val trimmedText = decodeMutex.withLock {
+                        val recognition = decodeMutex.withLock {
                             val r = activeRecognizer ?: return@withLock null
                             val stream = r.createStream()
                             stream.acceptWaveform(audioSegment, SAMPLE_RATE_HZ)
                             r.decode(stream)
-                            val result = r.getResult(stream)
+                            val asrResult = r.getResult(stream)
                             stream.release()
-                            result.text.trim().takeIf { it.isNotBlank() }
+                            asrResult.text.trim().takeIf { it.isNotBlank() }?.let { text ->
+                                RecognitionResult(text, isComplete = true, language = asrResult.lang)
+                            }
                         }
-                        if (trimmedText != null) {
-                            send(RecognitionResult(trimmedText, isComplete = true))
-                            Log.d(TAG, "Flush segment on stop: ${trimmedText.take(50)}")
+                        if (recognition != null) {
+                            send(recognition)
+                            Log.d(TAG, "Flush segment on stop: ${recognition.text.take(50)} lang=${recognition.language}")
                         }
                     } catch (e: Exception) {
                         Log.e(TAG, "Flush segment inference failed", e)

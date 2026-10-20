@@ -58,6 +58,18 @@ interface LlmInsightDao {
     suspend fun deleteInsightsBySession(sessionId: String)
 
     /**
+     * Get the owning session ID for an insight (used to refresh session metadata after deletion).
+     */
+    @Query("SELECT session_id FROM llm_insights WHERE id = :insightId")
+    suspend fun getSessionIdForInsight(insightId: String): String?
+
+    /**
+     * Delete a single insight by ID.
+     */
+    @Query("DELETE FROM llm_insights WHERE id = :insightId")
+    suspend fun deleteById(insightId: String)
+
+    /**
      * Sum of all insight content + tasks lengths across all sessions, in bytes.
      * Used to compute total on-device insight storage.
      */

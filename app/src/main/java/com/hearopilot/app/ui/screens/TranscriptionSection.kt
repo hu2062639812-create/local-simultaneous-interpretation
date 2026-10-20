@@ -6,10 +6,14 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
@@ -19,25 +23,30 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.hearopilot.app.ui.R
 import com.hearopilot.app.ui.icons.AppIcons
 import com.hearopilot.app.ui.ui.theme.*
 import com.hearopilot.app.domain.model.TranscriptionSegment
 
 /**
- * Transcription display.
- * - Auto-scroll to latest segment when content is present
- * - Minimal empty state when no segments yet (no hero, just centered icon + text)
+ * Bilingual subtitle display.
+ * - Source utterance plus its on-device translation
+ * - Auto-scroll to the latest segment
  */
 @Composable
 fun TranscriptionSection(
     segments: List<TranscriptionSegment>,
     isRecording: Boolean,
+    isPaused: Boolean = false,
+    pendingTranslationIds: Set<String>,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -52,6 +61,7 @@ fun TranscriptionSection(
         if (segments.isEmpty()) {
             TranscriptionEmptyState(
                 isRecording = isRecording,
+                isPaused = isPaused,
                 modifier = Modifier.fillMaxSize()
             )
         } else {
@@ -61,7 +71,10 @@ fun TranscriptionSection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(segments) { segment ->
-                    TranscriptionItem(segment)
+                    TranscriptionItem(
+                        segment = segment,
+                        isTranslating = segment.id in pendingTranslationIds
+                    )
                 }
             }
         }
@@ -73,10 +86,12 @@ fun TranscriptionSection(
  *
  * Idle:      static mic icon, "Press Record to start" hint.
  * Recording: mic icon pulses, text changes to "Listening…".
+ * Paused:    static mic icon, paused hint.
  */
 @Composable
 private fun TranscriptionEmptyState(
     isRecording: Boolean,
+    isPaused: Boolean,
     modifier: Modifier = Modifier
 ) {
     // Pulse animation — always created, only applied when recording.
@@ -109,8 +124,11 @@ private fun TranscriptionEmptyState(
         Spacer(modifier = Modifier.height(16.dp))
 
         Text(
-            text = if (isRecording) stringResource(R.string.transcription_listening)
-                   else stringResource(R.string.transcription_empty),
+            text = when {
+                isRecording -> stringResource(R.string.transcription_listening)
+                isPaused -> stringResource(R.string.recording_paused)
+                else -> stringResource(R.string.transcription_empty)
+            },
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -121,7 +139,8 @@ private fun TranscriptionEmptyState(
         if (!isRecording) {
             Spacer(modifier = Modifier.height(6.dp))
             Text(
-                text = stringResource(R.string.transcription_press_record),
+                text = if (isPaused) stringResource(R.string.session_paused_hint)
+                       else stringResource(R.string.transcription_press_record),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.65f),
                 textAlign = TextAlign.Center,
@@ -132,7 +151,7 @@ private fun TranscriptionEmptyState(
 }
 
 @Composable
-private fun TranscriptionItem(segment: TranscriptionSegment) {
+private fun TranscriptionItem(segment: TranscriptionSegment, isTranslating: Boolean) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -144,22 +163,84 @@ private fun TranscriptionItem(segment: TranscriptionSegment) {
         tonalElevation = 0.dp
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                LanguageBadge(segment)
+                if (!segment.isComplete) {
+                    Text(
+                        text = stringResource(R.string.transcription_listening),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ModeEmeraldTint
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(6.dp))
+
             Text(
                 text = segment.text,
                 style = MaterialTheme.typography.transcription,
                 color = MaterialTheme.colorScheme.onSurface
             )
 
-            if (segment.isComplete) {
+            val translated = segment.translatedText?.takeIf { it.isNotBlank() }
+            if (translated != null) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(vertical = 10.dp),
+                    thickness = 1.dp,
+                    color = MaterialTheme.colorScheme.outlineVariant
+                )
+                Text(
+                    text = translated,
+                    style = MaterialTheme.typography.transcription,
+                    fontWeight = FontWeight.Medium,
+                    color = ModeEmeraldTint
+                )
+            } else if (segment.isComplete && isTranslating) {
                 Spacer(modifier = Modifier.height(8.dp))
-                androidx.compose.foundation.layout.Row(
+                Row(
                     verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    horizontalArrangement = Arrangement.spacedBy(6.dp)
                 ) {
-                    Icon(imageVector = AppIcons.CheckCircle, contentDescription = null, tint = Success, modifier = Modifier.size(14.dp))
-                    Text(text = stringResource(R.string.transcription_complete), style = MaterialTheme.typography.labelSmall, color = Success, fontWeight = FontWeight.Medium)
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(12.dp),
+                        strokeWidth = 1.5.dp,
+                        color = ModeEmeraldTint
+                    )
+                    Text(
+                        text = stringResource(R.string.translation_pending),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = ModeEmeraldTint
+                    )
                 }
             }
         }
     }
+}
+
+@Composable
+private fun LanguageBadge(segment: TranscriptionSegment) {
+    val detected = segment.detectedLanguage?.lowercase()
+    val isChinese = detected?.startsWith("zh") == true ||
+        detected?.startsWith("yue") == true ||
+        (detected == null && segment.text.any { it.code in 0x4E00..0x9FFF })
+    val badge = when {
+        isChinese -> stringResource(R.string.language_badge_zh)
+        detected?.startsWith("en") == true -> stringResource(R.string.language_badge_en)
+        detected != null -> detected.take(2).uppercase()
+        else -> stringResource(R.string.language_badge_en)
+    }
+
+    Text(
+        text = badge,
+        fontSize = 10.sp,
+        fontWeight = FontWeight.Bold,
+        color = Color.White,
+        modifier = Modifier
+            .clip(RoundedCornerShape(4.dp))
+            .background(if (isChinese) ModeEmeraldTint else ModeSkyBlueTint)
+            .padding(horizontal = 6.dp, vertical = 2.dp)
+    )
 }

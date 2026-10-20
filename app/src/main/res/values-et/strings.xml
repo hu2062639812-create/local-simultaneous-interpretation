@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Alusta</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI töötleb teie salvestust…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Minu transkriptsioonid</string>
     <string name="new_transcription">Uus transkriptsioon</string>
     <string name="session_unnamed">(Nimetu)</string>
@@ -382,7 +382,7 @@ Väljasta ainult tõlge. Ilma selgitusteta, ilma siltideta, ilma eesliiteteta.</
     <string name="onboarding_languages_continue">Jätka</string>
 
     <!-- Onboarding Messages -->
-    <string name="onboarding_message_1">HearoPilot kuulab, nii et te ei pea märkmeid tegema.</string>
+    <string name="onboarding_message_1">Local Interpreter kuulab, nii et te ei pea märkmeid tegema.</string>
     <string name="onboarding_message_2">Kogu AI töötlemine toimub teie seadmel: andmed ei lahku kuhugi.</string>
     <string name="onboarding_message_3">Transkribeerige loenguid, koosolekuid ja vestlusi reaalajas.</string>
     <string name="onboarding_message_4">Automaatsed kokkuvõtted aitavad teil keskenduda kõige olulisemale.</string>
@@ -391,8 +391,8 @@ Väljasta ainult tõlge. Ilma selgitusteta, ilma siltideta, ilma eesliiteteta.</
     <string name="onboarding_message_7">Hea õpilastele, professionaalidele ja kellelegi, kes räägib.</string>
     <string name="onboarding_message_8">Vaadake oma transkriptsioone ja ülevaateid igal ajal, võrguta.</string>
     <string name="onboarding_message_9">Üks puudutus alustamiseks, üks puudutus lõpetamiseks: nii lihtne.</string>
-    <string name="onboarding_message_10">Täname, et valisite HearoPiloti.</string>
-    <string name="onboarding_message_11">Kasuta HearoPiloti koos Bluetooth-mikrofoniga transkribeerimiseks kaugelt.</string>
+    <string name="onboarding_message_10">Täname, et valisite Local Interpreteri.</string>
+    <string name="onboarding_message_11">Kasuta Local Interpreteri koos Bluetooth-mikrofoniga transkribeerimiseks kaugelt.</string>
     <string name="json_field_title">pealkiri</string>
     <string name="json_field_summary">kokkuvote</string>
     <string name="json_field_action_items">tegevused</string>

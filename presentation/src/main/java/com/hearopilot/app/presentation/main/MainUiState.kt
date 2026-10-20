@@ -10,6 +10,8 @@ import com.hearopilot.app.domain.model.TranscriptionSegment
  * UI state for the main screen.
  *
  * @property isRecording Whether audio recording and STT is currently active
+ * @property isPaused Whether the current session is paused. The STT model and LLM stay
+ *   loaded, but the microphone, timer and foreground service are stopped until resume.
  * @property isFinalizingSession Whether a final LLM insight is being generated after stop.
  *   Recording is already stopped (isRecording = false) but the session has not fully
  *   concluded yet. The UI shows a shimmer placeholder while this is true.
@@ -23,9 +25,13 @@ import com.hearopilot.app.domain.model.TranscriptionSegment
  * @property downloadProgress Download progress percentage (0-100)
  * @property insightStrategy The insight generation strategy for the current session
  * @property batchProgress Progress state of the end-of-session batch pipeline
+ * @property pendingTranslations Number of completed segments still waiting for on-device translation
+ * @property pendingTranslationIds IDs of segments whose translation is still in flight
+ * @property isTranslating Whether live translation is currently behind the transcript
  */
 data class MainUiState(
     val isRecording: Boolean = false,
+    val isPaused: Boolean = false,
     val isFinalizingSession: Boolean = false,
     val insightStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
     val batchProgress: BatchInsightProgress = BatchInsightProgress.Idle,
@@ -42,8 +48,17 @@ data class MainUiState(
     val downloadProgress: Int = 0,
     val downloadSpeedMbps: Float = 0f,
     val downloadEtaSeconds: Int = 0,
-    val recordingDurationMillis: Long = 0
+    val recordingDurationMillis: Long = 0,
+    val pendingTranslations: Int = 0,
+    val pendingTranslationIds: Set<String> = emptySet()
 ) {
+    /** A session is active from the first start until Stop, including paused time. */
+    val isSessionActive: Boolean
+        get() = isRecording || isPaused
+
+    val isTranslating: Boolean
+        get() = pendingTranslations > 0
+
     /**
      * Returns all segments for display: completed + current partial (if exists).
      * Use this in UI to show the full transcription without duplicates.

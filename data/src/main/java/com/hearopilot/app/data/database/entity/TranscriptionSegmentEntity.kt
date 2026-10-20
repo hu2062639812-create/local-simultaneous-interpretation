@@ -41,5 +41,11 @@ data class TranscriptionSegmentEntity(
     val timestamp: Long,
 
     @ColumnInfo(name = "is_complete")
-    val isComplete: Boolean
+    val isComplete: Boolean,
+
+    @ColumnInfo(name = "translated_text")
+    val translatedText: String? = null,
+
+    @ColumnInfo(name = "detected_language")
+    val detectedLanguage: String? = null
 )

@@ -41,6 +41,19 @@ CLAUDE.md
 
 # Build artifacts
 build_log.txt
+hilt_build.log
+.kotlin/
+
+# Local model exports and downloaded model weights
+/models_export/
+*.gguf
+
+# Native build leftovers
+jniLibs-stale-backup/
+
+# Local test screenshots
+/mumu*.png
+/final_on_instance1.png
 
 # Local Claude Code config (never publish)
 .claude/

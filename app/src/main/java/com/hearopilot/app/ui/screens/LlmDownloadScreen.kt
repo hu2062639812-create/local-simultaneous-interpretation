@@ -26,8 +26,8 @@ import com.hearopilot.app.ui.components.DownloadOnboardingCarousel
 import com.hearopilot.app.ui.components.GradientButton
 import com.hearopilot.app.domain.model.DownloadState
 
-/** Gemma Terms of Use URL shown in the LLM download screen. */
-private const val LLM_LICENSE_URL = "https://ai.google.dev/gemma/terms"
+/** Apache 2.0 license URL shown in the LLM download screen. */
+private const val LLM_LICENSE_URL = "https://www.apache.org/licenses/LICENSE-2.0"
 
 /** Vertical overlap between the hero and the content sheet, in dp. */
 private val CONTENT_SHEET_OVERLAP = 28.dp
@@ -445,7 +445,7 @@ private fun LlmBenefitRow(icon: androidx.compose.ui.graphics.vector.ImageVector,
 
 /**
  * Tappable license row shown in the LLM model info card.
- * Opens the Gemma Terms of Use in the system browser.
+ * Opens the Apache 2.0 license for Qwen in the system browser.
  */
 @Composable
 private fun LlmLicenseLinkRow() {
@@ -465,7 +465,7 @@ private fun LlmLicenseLinkRow() {
             contentPadding = PaddingValues(0.dp)
         ) {
             Text(
-                text = "Gemma Terms of Use",
+                text = "Apache 2.0 · Qwen",
                 style = MaterialTheme.typography.bodySmall,
                 fontWeight = FontWeight.Medium,
                 color = BrandPrimary

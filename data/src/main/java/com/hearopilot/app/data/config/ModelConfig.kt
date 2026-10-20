@@ -17,12 +17,12 @@ data class ModelConfig(
 )
 
 // STT config is shared across all LLM variants.
+// SenseVoice small supports Chinese, English, Japanese, Korean and Cantonese and
+// reports the detected language, which drives the bidirectional interpretation target.
 private const val STT_BASE_URL =
-    "https://huggingface.co/csukuangfj/sherpa-onnx-nemo-parakeet-tdt-0.6b-v3-int8/resolve/main"
+    "https://huggingface.co/csukuangfj/sherpa-onnx-sense-voice-zh-en-ja-ko-yue-2024-07-17/resolve/main"
 private val STT_FILES = listOf(
-    "encoder.int8.onnx",
-    "decoder.int8.onnx",
-    "joiner.int8.onnx",
+    "model.int8.onnx",
     "tokens.txt"
 )
 

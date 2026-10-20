@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Start</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI verwerkt uw opname…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Mijn transcripties</string>
     <string name="new_transcription">Nieuwe transcriptie</string>
     <string name="session_unnamed">(Naamloos)</string>
@@ -390,7 +390,7 @@ Geef alleen de vertaling weer. Geen uitleg, geen labels, geen voorvoegsels.</str
     <string name="onboarding_languages_subtitle">Beschikbaar voor transcriptie en vertaling</string>
     <string name="onboarding_languages_continue">Doorgaan</string>
 
-    <string name="onboarding_message_1">HearoPilot luistert zodat u geen notities hoeft te maken.</string>
+    <string name="onboarding_message_1">Local Interpreter luistert zodat u geen notities hoeft te maken.</string>
     <string name="onboarding_message_2">Alle AI-verwerking gebeurt op uw apparaat: geen gegevens verlaten het.</string>
     <string name="onboarding_message_3">Transcribeer lezingen, vergaderingen en gesprekken in realtime.</string>
     <string name="onboarding_message_4">Automatische samenvattingen helpen u zich op het belangrijkste te concentreren.</string>
@@ -399,8 +399,8 @@ Geef alleen de vertaling weer. Geen uitleg, geen labels, geen voorvoegsels.</str
     <string name="onboarding_message_7">Geweldig voor studenten, professionals en iedereen die spreekt.</string>
     <string name="onboarding_message_8">Bekijk uw transcripties en inzichten altijd offline.</string>
     <string name="onboarding_message_9">Één tik om te starten, één tik om te stoppen: zo eenvoudig.</string>
-    <string name="onboarding_message_10">Bedankt dat u HearoPilot hebt gekozen.</string>
-    <string name="onboarding_message_11">Gebruik HearoPilot met een Bluetooth-microfoon om op afstand te transcriberen.</string>
+    <string name="onboarding_message_10">Bedankt dat u Local Interpreter hebt gekozen.</string>
+    <string name="onboarding_message_11">Gebruik Local Interpreter met een Bluetooth-microfoon om op afstand te transcriberen.</string>
     <string name="json_field_title">titel</string>
     <string name="json_field_summary">samenvatting</string>
     <string name="json_field_action_items">acties</string>

@@ -1,5 +1,8 @@
 ﻿package com.hearopilot.app.ui.screens
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -8,6 +11,7 @@ import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.verticalScroll
 import com.hearopilot.app.ui.icons.AppIcons
 import androidx.compose.material3.*
@@ -16,13 +20,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hearopilot.app.ui.R
+import com.hearopilot.app.ui.locale.AppLanguage
+import com.hearopilot.app.ui.locale.AppLocale
 import com.hearopilot.app.ui.ui.theme.*
 import com.hearopilot.app.domain.model.AppSettings
 import com.hearopilot.app.domain.model.DownloadState
@@ -60,7 +68,8 @@ fun SettingsScreen(
     val isLlmDownloaded by viewModel.isLlmDownloaded.collectAsStateWithLifecycle()
     val llmDownloadState by viewModel.llmDownloadState.collectAsStateWithLifecycle()
     val activeDownloadVariant by viewModel.activeDownloadVariant.collectAsStateWithLifecycle()
-    val recommendedVariant = viewModel.recommendedVariant
+    val context = LocalContext.current
+    val appLanguage = AppLocale.current(context)
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -101,9 +110,6 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_section_llm)) {
                 LlmModelVariantSetting(
                     currentVariant = settings.llmModelVariant,
-                    recommendedVariant = recommendedVariant,
-                    isQ8Downloaded = viewModel.isVariantDownloaded(LlmModelVariant.Q8_0),
-                    isIq4Downloaded = viewModel.isVariantDownloaded(LlmModelVariant.IQ4_NL),
                     isQwen35Downloaded = viewModel.isVariantDownloaded(LlmModelVariant.QWEN3_5_Q8_0),
                     activeDownloadVariant = activeDownloadVariant,
                     onVariantChange = { viewModel.updateLlmModelVariant(it) },
@@ -127,12 +133,17 @@ fun SettingsScreen(
                     currentMode = settings.themeMode,
                     onModeChange = { viewModel.updateThemeMode(it) }
                 )
+                InterfaceLanguageSetting(
+                    currentLanguage = appLanguage,
+                    onLanguageChange = { language ->
+                        AppLocale.set(context, language)
+                        context.findActivity()?.recreate()
+                    }
+                )
             }
 
-            // Recording Modes accordion
-            SettingsSection(title = stringResource(R.string.settings_recording_modes)) {
-                RecordingModesAccordion(settings = settings, viewModel = viewModel)
-            }
+            // Recording-mode tuning is intentionally hidden: interpretation always
+            // translates each completed utterance and summarizes once at the end.
 
             // VAD Settings Section
             SettingsSection(title = stringResource(R.string.settings_section_vad)) {
@@ -361,23 +372,16 @@ private fun ModeAccordionCard(
 }
 
 /**
- * Card showing two selectable model variant options (Q8_0 and IQ4_NL) with:
- *  - Name and description for each option.
- *  - A "Recommended for your device" badge on the detected optimal variant.
- *  - A "Downloaded" chip when the variant's model file is present on disk.
+ * Card for the on-device interpretation model (Qwen 3.5 0.8B Q8_0), with a
+ * "Recommended" badge and a "Downloaded" chip when the model file is on disk.
  *
  * @param currentVariant The currently persisted variant selection.
- * @param recommendedVariant The variant recommended by [DeviceTierDetector] for this device.
- * @param isQ8Downloaded True if the Q8_0 model file exists on disk.
- * @param isIq4Downloaded True if the IQ4_NL model file exists on disk.
- * @param onVariantChange Callback when the user selects a different variant.
+ * @param isQwen35Downloaded True if the Qwen model file exists on disk.
+ * @param onVariantChange Callback when the user selects the model.
  */
 @Composable
 private fun LlmModelVariantSetting(
     currentVariant: LlmModelVariant,
-    recommendedVariant: LlmModelVariant,
-    isQ8Downloaded: Boolean,
-    isIq4Downloaded: Boolean,
     isQwen35Downloaded: Boolean,
     activeDownloadVariant: LlmModelVariant?,
     onVariantChange: (LlmModelVariant) -> Unit,
@@ -401,55 +405,12 @@ private fun LlmModelVariantSetting(
             )
         }
 
-        // Q8_0 option
-        ModelVariantOption(
-            isSelected = currentVariant == LlmModelVariant.Q8_0,
-            isRecommended = recommendedVariant == LlmModelVariant.Q8_0,
-            isDownloaded = isQ8Downloaded,
-            isDownloading = activeDownloadVariant == LlmModelVariant.Q8_0,
-            isBeta = false,
-            name = stringResource(R.string.settings_llm_model_variant_q8_name),
-            description = stringResource(R.string.settings_llm_model_variant_q8_desc),
-            onClick = { onVariantChange(LlmModelVariant.Q8_0) },
-            onDownload = { onDownloadVariant(LlmModelVariant.Q8_0) }
-        )
-
-        // IQ4_NL option
-        ModelVariantOption(
-            isSelected = currentVariant == LlmModelVariant.IQ4_NL,
-            isRecommended = recommendedVariant == LlmModelVariant.IQ4_NL,
-            isDownloaded = isIq4Downloaded,
-            isDownloading = activeDownloadVariant == LlmModelVariant.IQ4_NL,
-            isBeta = false,
-            name = stringResource(R.string.settings_llm_model_variant_iq4_name),
-            description = stringResource(R.string.settings_llm_model_variant_iq4_desc),
-            onClick = { onVariantChange(LlmModelVariant.IQ4_NL) },
-            onDownload = { onDownloadVariant(LlmModelVariant.IQ4_NL) }
-        )
-
-        // Advanced models section — experimental, manual-download only
-        HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
-        Column {
-            Text(
-                text = stringResource(R.string.settings_llm_advanced_section_title),
-                style = MaterialTheme.typography.bodyLarge,
-                fontWeight = FontWeight.Medium,
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = stringResource(R.string.settings_llm_advanced_section_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
-        }
-
-        // Qwen 3.5 0.8B Q8_0 — beta, advanced users only
         ModelVariantOption(
             isSelected = currentVariant == LlmModelVariant.QWEN3_5_Q8_0,
-            isRecommended = false,
+            isRecommended = true,
             isDownloaded = isQwen35Downloaded,
             isDownloading = activeDownloadVariant == LlmModelVariant.QWEN3_5_Q8_0,
-            isBeta = true,
+            isBeta = false,
             name = stringResource(R.string.settings_llm_model_variant_qwen35_name),
             description = stringResource(R.string.settings_llm_model_variant_qwen35_desc),
             onClick = { onVariantChange(LlmModelVariant.QWEN3_5_Q8_0) },
@@ -1365,6 +1326,73 @@ private fun LlmSamplerSetting(
             )
         }
     }
+}
+
+/**
+ * Interface language setting. Persisted outside DataStore so the choice is
+ * available synchronously when the activity attaches its base context.
+ */
+@Composable
+private fun InterfaceLanguageSetting(
+    currentLanguage: AppLanguage,
+    onLanguageChange: (AppLanguage) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.settings_language_title),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = stringResource(R.string.settings_language_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(
+                AppLanguage.SYSTEM to stringResource(R.string.settings_language_system),
+                AppLanguage.SIMPLIFIED_CHINESE to stringResource(R.string.settings_language_zh),
+                AppLanguage.ENGLISH to stringResource(R.string.settings_language_en)
+            ).forEach { (language, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = currentLanguage == language,
+                            onClick = { onLanguageChange(language) },
+                            role = Role.RadioButton
+                        )
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = currentLanguage == language,
+                        onClick = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
+}
+
+private fun Context.findActivity(): Activity? {
+    var context: Context = this
+    while (context is ContextWrapper) {
+        if (context is Activity) return context
+        context = context.baseContext
+    }
+    return null
 }
 
 /**

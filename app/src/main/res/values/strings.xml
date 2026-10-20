@@ -1,10 +1,12 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Start</string>
     <string name="stop">Stop</string>
+    <string name="pause">Pause</string>
+    <string name="resume">Resume</string>
     <string name="copy">Copy</string>
     <string name="clear">Clear</string>
     <string name="delete">Delete</string>
@@ -38,7 +40,7 @@
     <string name="notification_llm_processing_text">AI is processing your recording…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">My Transcriptions</string>
     <string name="new_transcription">New Transcription</string>
     <string name="session_unnamed">(Unnamed)</string>
@@ -76,6 +78,7 @@
     <string name="initializing_models">Loading models…</string>
     <string name="recording_active">Recording</string>
     <string name="recording_paused">Paused</string>
+    <string name="session_paused_hint">Session paused. Tap resume to continue.</string>
     <string name="back_to_sessions">Back to sessions</string>
     <string name="stop_recording_confirm_title">Stop Recording?</string>
     <string name="stop_recording_confirm_message">Recording is in progress. Stop recording and go back?</string>
@@ -97,13 +100,13 @@
     <string name="transcription_error">Error: %s</string>
 
     <!-- AI Insights Tab -->
-    <string name="insights_disabled">AI insights are disabled</string>
-    <string name="insights_disabled_subtitle">Enable AI Analysis in Settings to use this feature</string>
+    <string name="insights_disabled">On-device AI is disabled</string>
+    <string name="insights_disabled_subtitle">Enable local AI in Settings to translate speech and generate summaries</string>
     <string name="insights_empty">AI insights will appear here</string>
-    <string name="insights_empty_subtitle">Generated during recording</string>
+    <string name="insights_empty_subtitle">Generated on-device when you stop recording</string>
     <string name="insights_model_unavailable">LLM model not downloaded</string>
     <string name="llm_model_not_downloaded_error">LLM model not downloaded. Please download it from Settings.</string>
-    <string name="insights_download_prompt">Download the AI model to enable insights</string>
+    <string name="insights_download_prompt">Download the on-device model to translate speech and generate summaries</string>
     <string name="insights_download_button">Download Model</string>
     <string name="insights_downloading">Downloading: %d%%</string>
     <string name="insights_download_speed">%s MB/s</string>
@@ -115,6 +118,12 @@
     <string name="collapse">Collapse</string>
     <string name="source_transcription">Source Transcription:</string>
     <string name="segments_not_found">(Segments not found)</string>
+    <string name="summary_time_label">Time</string>
+    <string name="copy_summary">Copy summary</string>
+    <string name="delete_summary">Delete summary</string>
+    <string name="delete_summary_title">Delete Summary?</string>
+    <string name="delete_summary_message">This summary will be permanently deleted from this session. This action cannot be undone.</string>
+    <string name="summary_copied">Summary copied</string>
 
     <!-- System Prompts — English version used as default and fallback.
          Each locale file contains a fully translated version of the prompt instructions.
@@ -307,6 +316,13 @@
     <string name="theme_light_desc">App will always use light theme</string>
     <string name="theme_dark_desc">App will always use dark theme</string>
 
+    <!-- Interface Language Settings -->
+    <string name="settings_language_title">Interface Language</string>
+    <string name="settings_language_desc">Choose the language used by the app</string>
+    <string name="settings_language_system">Follow system</string>
+    <string name="settings_language_zh">简体中文</string>
+    <string name="settings_language_en">English</string>
+
     <!-- Translation Settings -->
     <string name="settings_translation_target_title">Default Target Language</string>
     <string name="settings_translation_target_desc">Default language for translation</string>
@@ -332,6 +348,31 @@
     <string name="new_session_output_language_label">Output Language</string>
     <string name="new_session_language_auto">Auto (Device Language)</string>
     <string name="new_session_insight_interval">Every %s</string>
+
+    <!-- Interpretation-first UI -->
+    <string name="interpretation_dialog_title">New Interpretation</string>
+    <string name="interpretation_dialog_subtitle">On-device simultaneous interpretation</string>
+    <string name="interpretation_direction_label">Translation direction</string>
+    <string name="interpretation_direction_auto">Auto (Chinese ⇄ English)</string>
+    <string name="interpretation_direction_auto_desc">Detect each utterance and translate it into the other language</string>
+    <string name="interpretation_direction_zh">Into Chinese</string>
+    <string name="interpretation_direction_zh_desc">English speech is translated into Chinese; Chinese speech is kept as-is</string>
+    <string name="interpretation_direction_en">Into English</string>
+    <string name="interpretation_direction_en_desc">Chinese speech is translated into English; English speech is kept as-is</string>
+    <string name="interpretation_topic_label">Session topic (optional)</string>
+    <string name="interpretation_topic_hint">e.g. Product design review</string>
+    <string name="interpretation_offline_note">Speech recognition, translation and the final summary run entirely on this device. Download the models once, then no network is needed.</string>
+    <string name="interpretation_start">Start interpreting</string>
+    <string name="tab_subtitles">Bilingual Subtitles</string>
+    <string name="tab_summary">Summary</string>
+    <string name="translation_pending">Translating…</string>
+    <string name="translation_empty_source">Waiting for speech…</string>
+    <string name="language_badge_zh">中</string>
+    <string name="language_badge_en">EN</string>
+    <string name="language_badge_other">%s</string>
+    <string name="summary_finalizing">Generating summary…</string>
+    <string name="summary_pending_hint">Stop the session to generate an on-device summary.</string>
+    <string name="summary_empty">The summary will appear here after you stop recording.</string>
 
     <!-- Session Details - Tabs and Insight Card -->
     <string name="tab_transcript">Transcript</string>
@@ -362,15 +403,15 @@
     <string name="setup_downloading_model">Downloading Model...</string>
 
     <!-- Welcome Screen -->
-    <string name="welcome_subtitle">Real-time Speech Analysis</string>
-    <string name="welcome_feature_transcription_title">Live Transcription</string>
-    <string name="welcome_feature_transcription_desc">Convert speech to text in real-time with high accuracy</string>
-    <string name="welcome_feature_ai_title">AI Insights</string>
-    <string name="welcome_feature_ai_desc">Get intelligent suggestions and analysis as you speak</string>
+    <string name="welcome_subtitle">Offline Simultaneous Interpretation</string>
+    <string name="welcome_feature_transcription_title">Bilingual Subtitles</string>
+    <string name="welcome_feature_transcription_desc">Chinese and English speech is recognized and translated into the other language as you speak</string>
+    <string name="welcome_feature_ai_title">Summary</string>
+    <string name="welcome_feature_ai_desc">Stop recording to generate a structured on-device summary</string>
     <string name="welcome_feature_privacy_title">Privacy First</string>
     <string name="welcome_feature_privacy_desc">All processing happens on your device: your data never leaves</string>
     <string name="welcome_get_started">Get Started</string>
-    <string name="welcome_models_required">Two model downloads required</string>
+    <string name="welcome_models_required">Two one-time model downloads required</string>
 
     <!-- Onboarding - Common -->
     <string name="onboarding_model_label">Model:</string>
@@ -392,36 +433,43 @@
     <string name="onboarding_time_hours">%d hr %d min</string>
 
     <!-- Onboarding - STT Download -->
-    <string name="onboarding_stt_title">Speech Recognition</string>
+    <string name="onboarding_stt_title">Offline Speech Recognition</string>
     <string name="onboarding_stt_ready">Model Ready!</string>
     <string name="onboarding_stt_ready_desc">Speech recognition model downloaded successfully.</string>
     <string name="onboarding_stt_model_title">Speech Recognition Model</string>
-    <string name="onboarding_stt_model_desc">This model converts your speech to text in real-time. It\'s essential for the app to work.</string>
-    <string name="onboarding_stt_model_name">Sherpa-ONNX Parakeet</string>
+    <string name="onboarding_stt_model_desc">Recognizes Mandarin Chinese and English speech in real time. Runs entirely on this device.</string>
+    <string name="onboarding_stt_model_name">SenseVoice Small</string>
     <string name="onboarding_stt_download_button">Download Model</string>
-    <string name="onboarding_stt_note">This model is essential for the app to function.</string>
+    <string name="onboarding_stt_note">Required. Speech recognition never leaves this device.</string>
 
     <!-- Onboarding - Supported Languages -->
-    <string name="onboarding_languages_title">Supported Languages</string>
-    <string name="onboarding_languages_subtitle">Available for transcription and translation</string>
+    <!-- Onboarding - First-run interface language -->
+    <string name="onboarding_interface_language_title">Choose your language</string>
+    <string name="onboarding_interface_language_subtitle">This sets the language used by the app interface.</string>
+    <string name="onboarding_interface_language_zh_desc">Simplified Chinese interface</string>
+    <string name="onboarding_interface_language_en_desc">English interface</string>
+    <string name="onboarding_interface_language_note">You can change this later in Settings.</string>
+
+    <string name="onboarding_languages_title">Chinese ⇄ English</string>
+    <string name="onboarding_languages_subtitle">Automatic language detection. Chinese speech is translated into English, and English speech into Chinese.</string>
     <string name="onboarding_languages_continue">Continue</string>
 
     <!-- Onboarding - LLM Download -->
-    <string name="onboarding_llm_title">AI Intelligence</string>
-    <string name="onboarding_llm_optional">AI Insights (Optional)</string>
-    <string name="onboarding_llm_desc">Download an AI model to get intelligent insights and suggestions as you speak.</string>
-    <string name="onboarding_llm_benefit_1">Real-time suggestions</string>
-    <string name="onboarding_llm_benefit_2">Context-aware analysis</string>
-    <string name="onboarding_llm_benefit_3">100% private and offline</string>
-    <string name="onboarding_llm_model_name">Gemma 3 1B</string>
+    <string name="onboarding_llm_title">Translation &amp; Summary</string>
+    <string name="onboarding_llm_optional">Translation Model (Required)</string>
+    <string name="onboarding_llm_desc">Download the on-device language model used for simultaneous translation and the session summary.</string>
+    <string name="onboarding_llm_benefit_1">Translates each utterance as you speak</string>
+    <string name="onboarding_llm_benefit_2">Generates a summary when you stop</string>
+    <string name="onboarding_llm_benefit_3">100% private and offline after download</string>
+    <string name="onboarding_llm_model_name">Qwen 3.5 0.8B</string>
     <string name="onboarding_llm_download_button">Download AI Model</string>
-    <string name="onboarding_llm_skip">Skip for now (Transcription only)</string>
+    <string name="onboarding_llm_skip">Skip for now (recognition only)</string>
     <string name="onboarding_llm_downloading">Downloading AI Model...</string>
     <string name="onboarding_llm_downloaded_label">Downloaded:</string>
     <string name="onboarding_llm_complete">Download Complete!</string>
     <string name="onboarding_llm_initializing">Initializing AI model...</string>
     <string name="onboarding_llm_skip_short">Skip for now</string>
-    <string name="onboarding_llm_skip_note">You can download this later from Settings if you skip now. The app will work fine with transcription only.</string>
+    <string name="onboarding_llm_skip_note">Without the translation model the app can recognize speech but cannot translate or summarize it. You can download it later from Settings.</string>
 
     <!-- Search screen -->
     <string name="search_hint">Search transcriptions…</string>
@@ -432,7 +480,7 @@
     <string name="search_source_session_name">Session name</string>
 
     <!-- Onboarding carousel messages shown while the LLM model is downloading -->
-    <string name="onboarding_message_1">HearoPilot listens so you don\'t have to take notes.</string>
+    <string name="onboarding_message_1">Local Interpreter listens so you don\'t have to take notes.</string>
     <string name="onboarding_message_2">All AI processing runs on your device: no data leaves.</string>
     <string name="onboarding_message_3">Transcribe lectures, meetings and conversations in real time.</string>
     <string name="onboarding_message_4">Automatic summaries help you focus on what matters most.</string>
@@ -441,8 +489,8 @@
     <string name="onboarding_message_7">Great for students, professionals and anyone who speaks.</string>
     <string name="onboarding_message_8">Review your transcriptions and insights anytime, offline.</string>
     <string name="onboarding_message_9">One tap to start, one tap to stop: it\'s that simple.</string>
-    <string name="onboarding_message_10">Thank you for choosing HearoPilot.</string>
-    <string name="onboarding_message_11">Use HearoPilot with a Bluetooth microphone to transcribe from a distance.</string>
+    <string name="onboarding_message_10">Thank you for choosing Local Interpreter.</string>
+    <string name="onboarding_message_11">Use Local Interpreter with a Bluetooth microphone to transcribe from a distance.</string>
 
     <!-- About & Legal section in Settings -->
     <string name="settings_section_about">About &amp; Legal</string>
@@ -453,7 +501,7 @@
 
     <!-- Open Source Licenses screen -->
     <string name="licenses_title">Open Source Licenses</string>
-    <string name="licenses_intro">HearoPilot uses the following third-party software and AI models. Tap a card to read the full license text.</string>
+    <string name="licenses_intro">Local Interpreter uses the following third-party software and AI models. Tap a card to read the full license text.</string>
     <string name="licenses_open_url">Open</string>
     <string name="licenses_show_full_text">Show full license</string>
     <string name="licenses_hide_full_text">Hide full license</string>
@@ -471,17 +519,17 @@
     <string name="settings_llm_model_downloading">Downloading %1$d%%</string>
 
     <!-- LLM Model Variant Setting -->
-    <string name="settings_llm_model_variant_title">AI Model Quality</string>
-    <string name="settings_llm_model_variant_desc">Choose between higher accuracy or better battery efficiency. Re-download the model after changing.</string>
+    <string name="settings_llm_model_variant_title">On-device AI model</string>
+    <string name="settings_llm_model_variant_desc">Qwen 3.5 0.8B handles live translation and the final summary locally. Download once, then work offline.</string>
     <string name="settings_llm_model_variant_q8_name">Standard (Q8)</string>
     <string name="settings_llm_model_variant_q8_desc">Higher accuracy · For flagship devices</string>
     <string name="settings_llm_model_variant_iq4_name">Efficient (IQ4)</string>
     <string name="settings_llm_model_variant_iq4_desc">Optimized for energy efficiency</string>
-    <string name="settings_llm_model_variant_recommended">Recommended for your device</string>
+    <string name="settings_llm_model_variant_recommended">Recommended</string>
     <string name="settings_llm_model_variant_downloaded">Downloaded</string>
     <string name="settings_llm_model_variant_beta">Beta</string>
     <string name="settings_llm_advanced_section_title">Advanced Models</string>
     <string name="settings_llm_advanced_section_desc">Experimental models for advanced users. Performance may vary from standard models.</string>
     <string name="settings_llm_model_variant_qwen35_name">Qwen 3.5 0.8B (Q8)</string>
-    <string name="settings_llm_model_variant_qwen35_desc">Alternative architecture · Experimental</string>
+    <string name="settings_llm_model_variant_qwen35_desc">Recommended · strong Chinese and English · ~870 MB</string>
 </resources>

@@ -27,6 +27,7 @@ import com.hearopilot.app.ui.ui.theme.BrandPrimary
  */
 private fun languageFlagEmoji(code: String): String {
     val countryCode = when (code) {
+        "zh" -> "CN"
         "bg" -> "BG"
         "cs" -> "CZ"
         "da" -> "DK"
@@ -62,10 +63,9 @@ private fun languageFlagEmoji(code: String): String {
 }
 
 /**
- * Onboarding screen that showcases the 25 supported languages.
+ * Onboarding screen that showcases the two interpretation languages.
  *
- * Purely informational — no selection required. Displays each language as a
- * flag emoji plus its native name in a scrollable grid. The user taps "Continue"
+ * Purely informational — no selection required. The user taps "Continue"
  * to proceed to the STT download step.
  *
  * @param onContinue Callback when user taps the Continue button
@@ -114,7 +114,7 @@ fun SupportedLanguagesScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                items(SupportedLanguages.ALL) { language ->
+                items(SupportedLanguages.ALL.filter { it.code == "zh" || it.code == "en" }) { language ->
                     LanguageCell(
                         flag = languageFlagEmoji(language.code),
                         name = language.nativeName

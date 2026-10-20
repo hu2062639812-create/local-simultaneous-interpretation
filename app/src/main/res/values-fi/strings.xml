@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Aloita</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">Tekoäly käsittelee tallennettasi…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Litterointini</string>
     <string name="new_transcription">Uusi litterointi</string>
     <string name="session_unnamed">(Nimetön)</string>
@@ -382,7 +382,7 @@ Tulosta vain käännös. Ei selityksiä, ei tunnisteita, ei etuliitteitä.</stri
     <string name="onboarding_languages_continue">Jatka</string>
 
     <!-- Onboarding Messages -->
-    <string name="onboarding_message_1">HearoPilot kuuntelee, joten sinun ei tarvitse tehdä muistiinpanoja.</string>
+    <string name="onboarding_message_1">Local Interpreter kuuntelee, joten sinun ei tarvitse tehdä muistiinpanoja.</string>
     <string name="onboarding_message_2">Kaikki tekoälyn käsittely tapahtuu laitteellasi: tietoja ei lähde mihinkään.</string>
     <string name="onboarding_message_3">Litteroi luennot, kokoukset ja keskustelut reaaliajassa.</string>
     <string name="onboarding_message_4">Automaattiset yhteenvedot auttavat sinua keskittymään tärkeimpään.</string>
@@ -391,8 +391,8 @@ Tulosta vain käännös. Ei selityksiä, ei tunnisteita, ei etuliitteitä.</stri
     <string name="onboarding_message_7">Loistava opiskelijoille, ammattilaisille ja kaikille puhuville.</string>
     <string name="onboarding_message_8">Tarkista litteroinnit ja näkemykset milloin tahansa, offline-tilassa.</string>
     <string name="onboarding_message_9">Yksi napaautus aloittamiseen, yksi napaautus lopettamiseen: niin yksinkertaista.</string>
-    <string name="onboarding_message_10">Kiitos siitä, että valitsit HearoPilotin.</string>
-    <string name="onboarding_message_11">Käytä HearoPilotia Bluetooth-mikrofonin kanssa litteroidaksesi etäältä.</string>
+    <string name="onboarding_message_10">Kiitos siitä, että valitsit Local Interpreterin.</string>
+    <string name="onboarding_message_11">Käytä Local Interpreteria Bluetooth-mikrofonin kanssa litteroidaksesi etäältä.</string>
     <string name="json_field_title">otsikko</string>
     <string name="json_field_summary">yhteenveto</string>
     <string name="json_field_action_items">toimenpiteet</string>

@@ -79,7 +79,7 @@ fun MainScreen(
     // Intercept hardware back button while recording is active.
     var showStopConfirmDialog by remember { mutableStateOf(false) }
     // Block back navigation while recording or while the session is being finalized.
-    BackHandler(enabled = uiState.isRecording || uiState.isFinalizingSession) {
+    BackHandler(enabled = uiState.isSessionActive || uiState.isFinalizingSession) {
         if (!uiState.isFinalizingSession) {
             showStopConfirmDialog = true
         }
@@ -182,22 +182,27 @@ fun MainScreen(
                                 verticalAlignment = Alignment.CenterVertically,
                                 horizontalArrangement = Arrangement.spacedBy(4.dp)
                             ) {
-                                if (uiState.isRecording) {
+                                if (uiState.isSessionActive) {
                                     Box(
                                         modifier = Modifier
                                             .size(6.dp)
-                                            .background(Color.Red, CircleShape)
+                                            .background(
+                                                if (uiState.isRecording) Color.Red else ModeAmberTint,
+                                                CircleShape
+                                            )
                                     )
                                 }
                                 Text(
-                                    text = if (uiState.isRecording) {
-                                        formatRecordingTime(uiState.recordingDurationMillis)
-                                    } else {
-                                        stringResource(R.string.recording_session)
+                                    text = when {
+                                        uiState.isRecording ->
+                                            formatRecordingTime(uiState.recordingDurationMillis)
+                                        uiState.isPaused ->
+                                            "${stringResource(R.string.recording_paused)} · ${formatRecordingTime(uiState.recordingDurationMillis)}"
+                                        else -> stringResource(R.string.recording_session)
                                     },
                                     style = MaterialTheme.typography.bodySmall,
-                                    color = Color.White.copy(alpha = if (uiState.isRecording) 1f else 0.75f),
-                                    fontWeight = if (uiState.isRecording) FontWeight.Bold else FontWeight.Normal
+                                    color = Color.White.copy(alpha = if (uiState.isSessionActive) 1f else 0.75f),
+                                    fontWeight = if (uiState.isSessionActive) FontWeight.Bold else FontWeight.Normal
                                 )
                             }
                         }
@@ -207,7 +212,7 @@ fun MainScreen(
                             onClick = {
                                 when {
                                     uiState.isFinalizingSession -> { /* blocked: session is finalizing */ }
-                                    uiState.isRecording -> showStopConfirmDialog = true
+                                    uiState.isSessionActive -> showStopConfirmDialog = true
                                     else -> onNavigateBack()
                                 }
                             },
@@ -255,29 +260,57 @@ fun MainScreen(
                 contentColor = MaterialTheme.colorScheme.onSurface,
                 tonalElevation = 0.dp
             ) {
-                // Clear button
-                IconButton(
-                    onClick = { viewModel.clearHistory() },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Icon(
-                            AppIcons.Delete,
-                            stringResource(R.string.clear),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.size(22.dp)
-                        )
-                        Text(
-                            text = stringResource(R.string.clear),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
+                // Left slot: Stop while a session is active (recording or paused),
+                // otherwise Clear history.
+                if (uiState.isSessionActive) {
+                    val stopTint = if (uiState.isFinalizingSession) {
+                        MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f)
+                    } else {
+                        MaterialTheme.colorScheme.error
+                    }
+                    IconButton(
+                        onClick = { viewModel.stopStreaming() },
+                        enabled = !uiState.isFinalizingSession,
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                AppIcons.Stop,
+                                stringResource(R.string.stop),
+                                tint = stopTint,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.stop),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = stopTint
+                            )
+                        }
+                    }
+                } else {
+                    IconButton(
+                        onClick = { viewModel.clearHistory() },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            Icon(
+                                AppIcons.Delete,
+                                stringResource(R.string.clear),
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(22.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.clear),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                        }
                     }
                 }
 
-                // Record/Stop FAB (centered) with pulse animation.
+                // Center FAB: Mic (idle) → Pause (recording) → Play (paused).
                 // Disabled while STT is initializing (models still loading).
-                // Shows frozen Mic icon + spinner overlay while session is finalizing.
+                // Shows frozen icon + spinner overlay while session is finalizing.
                 Box(
                     modifier = Modifier.weight(1f),
                     contentAlignment = Alignment.Center
@@ -294,6 +327,18 @@ fun MainScreen(
                         ),
                         label = "fab_scale"
                     )
+                    val fabEnabled = !uiState.isFinalizingSession &&
+                        (uiState.isSessionActive || canRecord)
+                    val fabGradient = when {
+                        uiState.isPaused -> ModeTranslationGradient
+                        uiState.isRecording -> Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.error,
+                                MaterialTheme.colorScheme.error
+                            )
+                        )
+                        else -> PrimaryGradient
+                    }
 
                     Box(
                         modifier = Modifier
@@ -302,36 +347,38 @@ fun MainScreen(
                             .alpha(
                                 when {
                                     uiState.isFinalizingSession -> 0.5f
-                                    canRecord || uiState.isRecording -> 1f
+                                    fabEnabled -> 1f
                                     else -> 0.4f
                                 }
                             )
-                            .background(
-                                brush = if (!uiState.isRecording) PrimaryGradient else Brush.linearGradient(
-                                    colors = listOf(
-                                        MaterialTheme.colorScheme.error,
-                                        MaterialTheme.colorScheme.error
-                                    )
-                                ),
-                                shape = CircleShape
-                            ),
+                            .background(brush = fabGradient, shape = CircleShape),
                         contentAlignment = Alignment.Center
                     ) {
                         IconButton(
                             onClick = {
                                 if (!uiState.isFinalizingSession) {
                                     haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    if (uiState.isRecording) viewModel.stopStreaming()
-                                    else viewModel.startStreaming()
+                                    when {
+                                        uiState.isPaused -> viewModel.startStreaming()
+                                        uiState.isRecording -> viewModel.pauseStreaming()
+                                        else -> viewModel.startStreaming()
+                                    }
                                 }
                             },
-                            enabled = (canRecord || uiState.isRecording) && !uiState.isFinalizingSession,
+                            enabled = fabEnabled,
                             modifier = Modifier.size(64.dp)
                         ) {
-                            // While finalizing: show Mic (frozen), otherwise show Stop/Mic normally.
                             Icon(
-                                imageVector = if (uiState.isRecording) AppIcons.Stop else AppIcons.Mic,
-                                contentDescription = if (uiState.isRecording) stringResource(R.string.stop) else stringResource(R.string.record),
+                                imageVector = when {
+                                    uiState.isPaused -> AppIcons.Play
+                                    uiState.isRecording -> AppIcons.Pause
+                                    else -> AppIcons.Mic
+                                },
+                                contentDescription = when {
+                                    uiState.isPaused -> stringResource(R.string.resume)
+                                    uiState.isRecording -> stringResource(R.string.pause)
+                                    else -> stringResource(R.string.record)
+                                },
                                 tint = Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
@@ -438,13 +485,13 @@ fun MainScreen(
                     onClick = { selectedTab = 0 },
                     text = {
                         Text(
-                            stringResource(R.string.tab_transcription),
+                            stringResource(R.string.tab_subtitles),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = if (selectedTab == 0) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     icon = {
-                        Icon(AppIcons.Mic, null)
+                        Icon(AppIcons.Translate, null)
                     }
                 )
                 Tab(
@@ -452,13 +499,13 @@ fun MainScreen(
                     onClick = { selectedTab = 1 },
                     text = {
                         Text(
-                            stringResource(R.string.tab_insights),
+                            stringResource(R.string.tab_summary),
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = if (selectedTab == 1) FontWeight.Bold else FontWeight.Normal
                         )
                     },
                     icon = {
-                        Icon(AppIcons.AutoAwesome, null)
+                        Icon(AppIcons.Summarize, null)
                     }
                 )
             }
@@ -486,6 +533,8 @@ fun MainScreen(
                         0 -> TranscriptionSection(
                             segments = uiState.allSegments,
                             isRecording = uiState.isRecording,
+                            isPaused = uiState.isPaused,
+                            pendingTranslationIds = uiState.pendingTranslationIds,
                             modifier = Modifier.fillMaxSize()
                         )
                         1 -> {
@@ -496,15 +545,41 @@ fun MainScreen(
                                 isLlmEnabled = uiState.settings.llmEnabled,
                                 isLlmAvailable = uiState.isLlmModelAvailable,
                                 isFinalizingSession = uiState.isFinalizingSession,
-                                isRecording = uiState.isRecording,
+                                isSessionActive = uiState.isSessionActive,
                                 insightStrategy = uiState.insightStrategy,
                                 batchProgress = uiState.batchProgress,
                                 onDownloadLlm = {
                                     onNavigateToLlmDownload()
                                 },
+                                onDeleteInsight = { viewModel.deleteInsight(it) },
                                 modifier = Modifier.fillMaxSize()
                             )
                         }
+                    }
+                }
+            }
+
+            // Translation backlog indicator while the LLM catches up with STT.
+            if (uiState.isTranslating && !uiState.isFinalizingSession) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = ModeEmeraldTint.copy(alpha = 0.12f)
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                        horizontalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(14.dp),
+                            strokeWidth = 2.dp,
+                            color = ModeEmeraldTint
+                        )
+                        Text(
+                            text = stringResource(R.string.translation_pending),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
                     }
                 }
             }
@@ -527,7 +602,7 @@ fun MainScreen(
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )
                         Text(
-                            text = stringResource(R.string.processing_session),
+                            text = stringResource(R.string.summary_finalizing),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onPrimaryContainer
                         )

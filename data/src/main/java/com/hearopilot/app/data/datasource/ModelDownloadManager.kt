@@ -28,6 +28,10 @@ class ModelDownloadManager(
 
     companion object {
         private const val TAG = "ModelDownloadManager"
+
+        // Versioned folder: prevents a previous model's tokens.txt from being reused,
+        // since file names alone cannot distinguish SenseVoice from the old Parakeet model.
+        private const val STT_DIR_NAME = "stt-sensevoice"
     }
 
     init {
@@ -212,7 +216,7 @@ class ModelDownloadManager(
      * Check if STT model is already downloaded.
      */
     fun isSttModelDownloaded(): Boolean {
-        val sttDir = File(modelsDir, "stt")
+        val sttDir = File(modelsDir, STT_DIR_NAME)
         return modelConfig.sttFiles.all { filename ->
             val file = File(sttDir, filename)
             file.exists() && file.length() > 0
@@ -225,18 +229,14 @@ class ModelDownloadManager(
      */
     fun getSttModelPath(): String? {
         return if (isSttModelDownloaded()) {
-            File(modelsDir, "stt").absolutePath
+            File(modelsDir, STT_DIR_NAME).absolutePath
         } else {
             null
         }
     }
 
     /**
-     * Download STT model files from HuggingFace.
-     * Downloads 4 files sequentially with aggregated progress.
-     */
-    /**
-     * Download all 4 STT model files sequentially with resume capability.
+     * Download all STT model files sequentially with resume capability.
      *
      * Each file is downloaded to a .partial temp file and renamed to its final name
      * only on successful completion. On failure:
@@ -248,7 +248,7 @@ class ModelDownloadManager(
      * on the first download attempt, does not force a full restart on retry.
      */
     fun downloadSttModel(): Flow<DownloadProgress> = flow {
-        val sttDir = File(modelsDir, "stt")
+        val sttDir = File(modelsDir, STT_DIR_NAME)
         sttDir.mkdirs()
 
         if (isSttModelDownloaded()) {
@@ -381,9 +381,7 @@ class ModelDownloadManager(
 
     /** Hardcoded size estimates used as fallback when HEAD requests fail. */
     private fun estimatedSttFileSize(filename: String): Long = when (filename) {
-        "encoder.int8.onnx" -> 68_000_000L
-        "decoder.int8.onnx" -> 10_000_000L
-        "joiner.int8.onnx"  -> 15_000_000L
-        else                -> 100_000L
+        "model.int8.onnx" -> 235_000_000L
+        else              -> 100_000L
     }
 }

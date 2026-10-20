@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Старт</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI обработва вашия запис…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Моите транскрипции</string>
     <string name="new_transcription">Нова транскрипция</string>
     <string name="session_unnamed">(Без име)</string>
@@ -390,7 +390,7 @@
     <string name="onboarding_languages_subtitle">Налични за транскрипция и превод</string>
     <string name="onboarding_languages_continue">Продължи</string>
 
-    <string name="onboarding_message_1">HearoPilot слуша, така че вие не трябва да водите бележки.</string>
+    <string name="onboarding_message_1">Local Interpreter слуша, така че вие не трябва да водите бележки.</string>
     <string name="onboarding_message_2">Вся обработка на AI се извършва на вашето устройство: никакви данни не се изпращат.</string>
     <string name="onboarding_message_3">Транскрибирайте лекции, срещи и разговори в реално време.</string>
     <string name="onboarding_message_4">Автоматичните резюмета ви помагат да се съсредоточите върху най-важното.</string>
@@ -399,8 +399,8 @@
     <string name="onboarding_message_7">Отлично за студенти, професионалисти и всички, които говорят.</string>
     <string name="onboarding_message_8">Преглед на транскрипциите и прозренията по всяко време, офлайн.</string>
     <string name="onboarding_message_9">Един докосък за начало, един докосък за край: толкова просто е.</string>
-    <string name="onboarding_message_10">Благодаря ви, че избрахте HearoPilot.</string>
-    <string name="onboarding_message_11">Използвайте HearoPilot с Bluetooth микрофон за транскрипция от разстояние.</string>
+    <string name="onboarding_message_10">Благодаря ви, че избрахте Local Interpreter.</string>
+    <string name="onboarding_message_11">Използвайте Local Interpreter с Bluetooth микрофон за транскрипция от разстояние.</string>
     <string name="json_field_title">заглавие</string>
     <string name="json_field_summary">резюме</string>
     <string name="json_field_action_items">практически_задачи</string>

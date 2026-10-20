@@ -74,6 +74,7 @@ fun SessionDetailsScreen(
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
+    var pendingDeleteInsight by remember { mutableStateOf<LlmInsight?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -242,6 +243,7 @@ fun SessionDetailsScreen(
                         onCancelGeneration = { viewModel.cancelHistoryInsight() },
                         onEditSegment = { viewModel.showEditSegmentDialog(it) },
                         onEditInsight = { viewModel.showEditInsightFullDialog(it) },
+                        onDeleteInsight = { pendingDeleteInsight = it },
                         onRename = { viewModel.showRenameDialog() }
                     )
                 }
@@ -289,6 +291,33 @@ fun SessionDetailsScreen(
             )
         }
 
+        // Single-summary delete confirmation
+        pendingDeleteInsight?.let { insight ->
+            AlertDialog(
+                onDismissRequest = { pendingDeleteInsight = null },
+                title = { Text(stringResource(R.string.delete_summary_title)) },
+                text = { Text(stringResource(R.string.delete_summary_message)) },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            viewModel.deleteInsight(insight.id)
+                            pendingDeleteInsight = null
+                        },
+                        colors = ButtonDefaults.textButtonColors(
+                            contentColor = MaterialTheme.colorScheme.error
+                        )
+                    ) {
+                        Text(stringResource(R.string.delete))
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { pendingDeleteInsight = null }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            )
+        }
+
         // Confirm before starting history insight generation
         if (uiState.showHistoryInsightConfirm) {
             val originalName = uiState.sessionDetails?.session?.name
@@ -325,6 +354,7 @@ private fun SessionDetailsContent(
     onCancelGeneration: () -> Unit,
     onEditSegment: (TranscriptionSegment) -> Unit,
     onEditInsight: (LlmInsight) -> Unit,
+    onDeleteInsight: (LlmInsight) -> Unit,
     onRename: () -> Unit
 ) {
     var selectedTab by rememberSaveable { mutableStateOf(initialTab) }
@@ -377,7 +407,8 @@ private fun SessionDetailsContent(
                 finalInsight = finalHistoryInsight,
                 highlightId = highlightId,
                 onCancel = onCancelGeneration,
-                onEditInsight = onEditInsight
+                onEditInsight = onEditInsight,
+                onDeleteInsight = onDeleteInsight
             )
         }
     }
@@ -540,7 +571,8 @@ private fun AiInsightsTab(
     finalInsight: LlmInsight?,
     highlightId: String?,
     onCancel: () -> Unit,
-    onEditInsight: (LlmInsight) -> Unit
+    onEditInsight: (LlmInsight) -> Unit,
+    onDeleteInsight: (LlmInsight) -> Unit
 ) {
     if (isGenerating) {
         GeneratingInsightsView(
@@ -556,7 +588,8 @@ private fun AiInsightsTab(
             segments = segments,
             insightStrategy = insightStrategy,
             highlightId = highlightId,
-            onEditInsight = onEditInsight
+            onEditInsight = onEditInsight,
+            onDeleteInsight = onDeleteInsight
         )
     }
 }
@@ -570,7 +603,8 @@ private fun StaticInsightsView(
     segments: List<TranscriptionSegment>,
     insightStrategy: com.hearopilot.app.domain.model.InsightStrategy,
     highlightId: String?,
-    onEditInsight: (LlmInsight) -> Unit
+    onEditInsight: (LlmInsight) -> Unit,
+    onDeleteInsight: (LlmInsight) -> Unit
 ) {
     if (dbInsights.isEmpty()) {
         Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -636,7 +670,8 @@ private fun StaticInsightsView(
                 insight = insight,
                 segments = segments,
                 isFinal = true,
-                onEditInsight = { onEditInsight(insight) }
+                onEditInsight = { onEditInsight(insight) },
+                onDelete = { onDeleteInsight(insight) }
             )
         }
         // Intermediate (chunk) insights or all real-time insights below.
@@ -645,7 +680,8 @@ private fun StaticInsightsView(
                 insight = insight,
                 segments = segments,
                 isFinal = false,
-                onEditInsight = { onEditInsight(insight) }
+                onEditInsight = { onEditInsight(insight) },
+                onDelete = { onDeleteInsight(insight) }
             )
         }
     }
@@ -810,15 +846,18 @@ private fun GenerationProgressBanner(
  * @param isFinal When true, uses [primaryContainer] background and shows an "Overall Summary" badge.
  * @param onEditInsight Null during live generation (not yet persisted).
  * @param onEditTask Null during live generation.
+ * @param onDelete Null during live generation (not yet persisted).
  */
 @Composable
 private fun InsightCard(
     insight: LlmInsight,
     segments: List<TranscriptionSegment>,
     isFinal: Boolean,
-    onEditInsight: (() -> Unit)? = null
+    onEditInsight: (() -> Unit)? = null,
+    onDelete: (() -> Unit)? = null
 ) {
     var isExpanded by remember { mutableStateOf(isFinal) }
+    val copySummary = rememberCopySummary(insight)
 
     val cardColor = if (isFinal) {
         MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.35f)
@@ -890,6 +929,7 @@ private fun InsightCard(
                     }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    SummaryActions(onCopy = copySummary, onDelete = onDelete)
                     // Single edit button opens a unified dialog for title, content, and tasks.
                     if (onEditInsight != null) {
                         IconButton(onClick = onEditInsight, modifier = Modifier.size(32.dp)) {
@@ -946,13 +986,24 @@ private fun InsightCard(
                 }
             }
 
-            // Timestamp
+            // Generation time
             Spacer(Modifier.height(8.dp))
-            Text(
-                text = formatTimestamp(insight.timestamp),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = AppIcons.Schedule,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = "${stringResource(R.string.summary_time_label)}: ${formatSummaryTime(insight.timestamp)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }
@@ -1114,6 +1165,21 @@ private fun TranscriptionSegmentCard(
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface
                 )
+                val translated = segment.translatedText?.takeIf { it.isNotBlank() }
+                if (translated != null) {
+                    Spacer(Modifier.height(6.dp))
+                    HorizontalDivider(
+                        thickness = 1.dp,
+                        color = MaterialTheme.colorScheme.outlineVariant
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = translated,
+                        style = MaterialTheme.typography.bodyMedium,
+                        fontWeight = FontWeight.Medium,
+                        color = ModeEmeraldTint
+                    )
+                }
             }
         }
     }

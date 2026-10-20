@@ -9,10 +9,6 @@
         android:largeScreens="false"
         android:xlargeScreens="false" />
 
-    <!-- Explicitly remove the AD_ID permission injected by Firebase Analytics.
-         The app does not use advertising ID; collection is disabled via meta-data. -->
-    <uses-permission android:name="com.google.android.gms.permission.AD_ID" tools:node="remove"/>
-
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.BLUETOOTH" />
     <uses-permission android:name="android.permission.BLUETOOTH_CONNECT"
@@ -49,16 +45,6 @@
 
         It is located at /vendor/lib64/libcdsprpc.so on your Phone
         -->
-        <!-- Disable Firebase Analytics advertising ID collection and ad personalization.
-             The app does not use ads; this avoids the Play Console AD_ID declaration
-             requirement and aligns with the app's privacy-first positioning. -->
-        <meta-data
-            android:name="google_analytics_adid_collection_enabled"
-            android:value="false" />
-        <meta-data
-            android:name="google_analytics_ssaid_collection_enabled"
-            android:value="false" />
-
         <uses-native-library
             android:name="libcdsprpc.so"
             android:required="false"/>

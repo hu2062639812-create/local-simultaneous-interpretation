@@ -52,6 +52,20 @@ interface LlmRepository {
     fun generateInsight(text: String, systemPrompt: String? = null, maxTokens: Int = 512): Flow<String>
 
     /**
+     * Generate text from a fully-formed user prompt.
+     *
+     * Unlike [generateInsight], the prompt is sent verbatim without the
+     * "Transcription: ..." wrapper. Used for sentence translation and session
+     * summaries, where the model must not treat the input as a transcript to analyze.
+     *
+     * @param prompt Complete user prompt
+     * @param systemPrompt Instructions set for this request
+     * @param maxTokens Maximum number of tokens to generate
+     * @return Flow of generated tokens. Collect to build the complete response.
+     */
+    fun generateRaw(prompt: String, systemPrompt: String, maxTokens: Int = 256): Flow<String>
+
+    /**
      * Update the system prompt without reloading the model.
      *
      * @param systemPrompt New system prompt to set

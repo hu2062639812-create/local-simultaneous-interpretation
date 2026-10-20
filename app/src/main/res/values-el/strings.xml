@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Έναρξη</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">Το AI επεξεργάζεται την ηχογράφησή σας…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Οι μεταγραφές μου</string>
     <string name="new_transcription">Νέα μεταγραφή</string>
     <string name="session_unnamed">(Χωρίς όνομα)</string>
@@ -390,7 +390,7 @@
     <string name="onboarding_languages_subtitle">Διαθέσιμες για μεταγραφή και μετάφραση</string>
     <string name="onboarding_languages_continue">Συνέχεια</string>
 
-    <string name="onboarding_message_1">Η HearoPilot ακούει, ώστε εσείς να μην χρειάζεται να κρατήσετε σημειώσεις.</string>
+    <string name="onboarding_message_1">Η Local Interpreter ακούει, ώστε εσείς να μην χρειάζεται να κρατήσετε σημειώσεις.</string>
     <string name="onboarding_message_2">Όλη η επεξεργασία AI εκτελείται στη συσκευή σας: κανένα δεδομένο δεν εγκαταλείπει.</string>
     <string name="onboarding_message_3">Μεταγράψτε διαλέξεις, συσκέψεις και συνομιλίες σε πραγματικό χρόνο.</string>
     <string name="onboarding_message_4">Οι αυτόματες περιλήψεις σας βοηθούν να εστιάσετε σε αυτό που είναι σημαντικό.</string>
@@ -399,8 +399,8 @@
     <string name="onboarding_message_7">Ιδανικό για φοιτητές, επαγγελματίες και όλους όσοι μιλούν.</string>
     <string name="onboarding_message_8">Ανατρέξτε τις μεταγραφές και τις ιδέες σας ανά πάσα στιγμή, χωρίς σύνδεση.</string>
     <string name="onboarding_message_9">Ένα πάτημα για έναρξη, ένα πάτημα για τέλος: είναι τόσο απλό.</string>
-    <string name="onboarding_message_10">Ευχαριστώ που επιλέξατε την HearoPilot.</string>
-    <string name="onboarding_message_11">Χρησιμοποιήστε το HearoPilot με μικρόφωνο Bluetooth για μεταγραφή από απόσταση.</string>
+    <string name="onboarding_message_10">Ευχαριστώ που επιλέξατε την Local Interpreter.</string>
+    <string name="onboarding_message_11">Χρησιμοποιήστε το Local Interpreter με μικρόφωνο Bluetooth για μεταγραφή από απόσταση.</string>
     <string name="json_field_title">τίτλος</string>
     <string name="json_field_summary">περίληψη</string>
     <string name="json_field_action_items">ενέργειες</string>

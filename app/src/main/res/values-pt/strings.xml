@@ -1,6 +1,6 @@
 <resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Iniciar</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">A IA está a processar a sua gravação…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Minhas Transcrições</string>
     <string name="new_transcription">Nova Transcrição</string>
     <string name="session_unnamed">(Sem nome)</string>
@@ -390,7 +390,7 @@ Apresenta apenas a tradução. Sem explicações, sem rótulos, sem prefixos.</s
     <string name="onboarding_languages_subtitle">Disponíveis para transcrição e tradução</string>
     <string name="onboarding_languages_continue">Continuar</string>
 
-    <string name="onboarding_message_1">HearoPilot escuta para que não tenha de tomar notas.</string>
+    <string name="onboarding_message_1">Local Interpreter escuta para que não tenha de tomar notas.</string>
     <string name="onboarding_message_2">Todo o processamento de IA ocorre no seu dispositivo: nenhum dado sai.</string>
     <string name="onboarding_message_3">Transcreva palestras, reuniões e conversas em tempo real.</string>
     <string name="onboarding_message_4">Resumos automáticos ajudam a focar no que é mais importante.</string>
@@ -399,8 +399,8 @@ Apresenta apenas a tradução. Sem explicações, sem rótulos, sem prefixos.</s
     <string name="onboarding_message_7">Ótimo para estudantes, profissionais e qualquer pessoa que fale.</string>
     <string name="onboarding_message_8">Revise suas transcrições e insights a qualquer momento, offline.</string>
     <string name="onboarding_message_9">Um toque para começar, um toque para parar: é tão simples.</string>
-    <string name="onboarding_message_10">Obrigado por escolher HearoPilot.</string>
-    <string name="onboarding_message_11">Use o HearoPilot com um microfone Bluetooth para transcrever à distância.</string>
+    <string name="onboarding_message_10">Obrigado por escolher Local Interpreter.</string>
+    <string name="onboarding_message_11">Use o Local Interpreter com um microfone Bluetooth para transcrever à distância.</string>
     <string name="json_field_title">titulo</string>
     <string name="json_field_summary">resumo</string>
     <string name="json_field_action_items">acoes</string>

@@ -8,8 +8,11 @@ import com.hearopilot.app.domain.repository.TranscriptionRepository
 import com.hearopilot.app.domain.usecase.llm.GenerateBatchInsightUseCase
 import com.hearopilot.app.domain.usecase.llm.GenerateFinalInsightUseCase
 import com.hearopilot.app.domain.usecase.llm.GenerateHistoryInsightUseCase
+import com.hearopilot.app.domain.usecase.llm.GenerateSessionSummaryUseCase
+import com.hearopilot.app.domain.usecase.llm.TranslateSegmentUseCase
 import com.hearopilot.app.domain.usecase.llm.UpdateSystemPromptUseCase
 import com.hearopilot.app.domain.usecase.transcription.CreateSessionUseCase
+import com.hearopilot.app.domain.usecase.transcription.DeleteInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SearchTranscriptionsUseCase
 import com.hearopilot.app.domain.usecase.transcription.DeleteSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.RenameSessionUseCase
@@ -111,6 +114,14 @@ object UseCaseModule {
 
     @Provides
     @ViewModelScoped
+    fun provideDeleteInsightUseCase(
+        repository: TranscriptionRepository
+    ): DeleteInsightUseCase {
+        return DeleteInsightUseCase(repository)
+    }
+
+    @Provides
+    @ViewModelScoped
     fun provideUpdateSystemPromptUseCase(
         settingsRepository: SettingsRepository,
         llmRepository: LlmRepository
@@ -170,5 +181,21 @@ object UseCaseModule {
         generateBatchInsightUseCase: GenerateBatchInsightUseCase
     ): GenerateHistoryInsightUseCase {
         return GenerateHistoryInsightUseCase(transcriptionRepository, generateBatchInsightUseCase)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideTranslateSegmentUseCase(
+        llmRepository: LlmRepository
+    ): TranslateSegmentUseCase {
+        return TranslateSegmentUseCase(llmRepository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGenerateSessionSummaryUseCase(
+        llmRepository: LlmRepository
+    ): GenerateSessionSummaryUseCase {
+        return GenerateSessionSummaryUseCase(llmRepository)
     }
 }

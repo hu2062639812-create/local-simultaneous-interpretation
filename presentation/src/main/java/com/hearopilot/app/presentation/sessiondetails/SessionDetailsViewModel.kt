@@ -10,6 +10,7 @@ import com.hearopilot.app.domain.repository.SettingsRepository
 import com.hearopilot.app.domain.service.LlmProcessingServiceController
 import com.hearopilot.app.domain.usecase.llm.GenerateHistoryInsightUseCase
 import com.hearopilot.app.domain.usecase.llm.InitializeLlmUseCase
+import com.hearopilot.app.domain.usecase.transcription.DeleteInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.DeleteSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.GetSessionDetailsUseCase
 import com.hearopilot.app.domain.usecase.transcription.RenameSessionUseCase
@@ -41,6 +42,7 @@ import javax.inject.Inject
 class SessionDetailsViewModel @Inject constructor(
     private val getSessionDetailsUseCase: GetSessionDetailsUseCase,
     private val deleteSessionUseCase: DeleteSessionUseCase,
+    private val deleteInsightUseCase: DeleteInsightUseCase,
     private val renameSessionUseCase: RenameSessionUseCase,
     private val updateSegmentTextUseCase: UpdateSegmentTextUseCase,
     private val updateInsightContentUseCase: UpdateInsightContentUseCase,
@@ -356,6 +358,19 @@ class SessionDetailsViewModel @Inject constructor(
                 .onFailure { e -> _uiState.update { it.copy(error = "Failed to update insight: ${e.message}") } }
 
             _uiState.update { it.copy(editingInsightFull = null) }
+        }
+    }
+
+    /**
+     * Delete a single insight from this session.
+     * The details flow refreshes automatically after deletion.
+     */
+    fun deleteInsight(insightId: String) {
+        viewModelScope.launch {
+            deleteInsightUseCase(insightId)
+                .onFailure { e ->
+                    _uiState.update { it.copy(error = "Failed to delete summary: ${e.message}") }
+                }
         }
     }
 

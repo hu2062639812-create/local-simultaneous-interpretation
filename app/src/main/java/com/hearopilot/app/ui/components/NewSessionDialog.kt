@@ -27,22 +27,11 @@ import com.hearopilot.app.ui.icons.AppIcons
 import com.hearopilot.app.ui.ui.theme.*
 
 /**
- * Custom dialog for creating a new transcription session.
+ * New-session dialog for the offline interpretation app.
  *
- * Layout: gradient header with title + close icon, scrollable body with:
- * output language selector (first), topic/name field, mode cards,
- * insight strategy chips, and primary CTA.
- *
- * Output language defaults to the device locale if it is among the 25 supported
- * languages, or falls back to English. The user can always override it.
- * For REAL_TIME_TRANSLATION the language selector acts as the translation target
- * and is seeded from [AppSettings.translationTargetLanguage].
- *
- * @param onDismiss Called when user dismisses the dialog.
- * @param onConfirm Called when user confirms; receives (sessionName, mode, outputLanguage, insightStrategy, topic).
- *                  outputLanguage is always a non-null BCP-47 code (never empty).
- * @param settings Current app settings used to show the insight interval per mode and
- *                 to seed the default language selection for translation mode.
+ * Every session is created as [RecordingMode.REAL_TIME_TRANSLATION] with an
+ * end-of-session summary. The only user choices are the translation direction
+ * (auto / into Chinese / into English) and an optional session topic.
  */
 @Composable
 fun NewSessionDialog(
@@ -50,39 +39,9 @@ fun NewSessionDialog(
     onConfirm: (String?, RecordingMode, String?, InsightStrategy, String?) -> Unit,
     settings: AppSettings = AppSettings()
 ) {
-    val languages = com.hearopilot.app.domain.model.SupportedLanguages.ALL
-    val supportedCodes = remember { languages.map { it.code }.toSet() }
-
-    // Resolve the device locale to a supported BCP-47 code (e.g. "it"), with "en" fallback.
-    val deviceLanguageCode = remember {
-        val lang = java.util.Locale.getDefault().language
-        if (lang in supportedCodes) lang else "en"
-    }
-
-    // Single combined input: used as both session name and topic
+    // null = auto (bidirectional), "zh" = force Chinese output, "en" = force English output.
+    var direction by remember { mutableStateOf<String?>(null) }
     var sessionTopic by remember { mutableStateOf("") }
-    var selectedMode by remember { mutableStateOf(RecordingMode.SIMPLE_LISTENING) }
-    // Always a valid BCP-47 code — device locale for analysis modes, translation target for translation mode.
-    var outputLanguage by remember { mutableStateOf(deviceLanguageCode) }
-    // Default strategy for the selected mode, updated when mode changes.
-    var insightStrategy by remember {
-        mutableStateOf(settings.simpleListeningDefaultStrategy)
-    }
-
-    // When mode changes: update language default and strategy default.
-    LaunchedEffect(selectedMode) {
-        outputLanguage = if (selectedMode == RecordingMode.REAL_TIME_TRANSLATION) {
-            settings.translationTargetLanguage
-        } else {
-            deviceLanguageCode
-        }
-        insightStrategy = when (selectedMode) {
-            RecordingMode.SIMPLE_LISTENING      -> settings.simpleListeningDefaultStrategy
-            RecordingMode.SHORT_MEETING         -> settings.shortMeetingDefaultStrategy
-            RecordingMode.LONG_MEETING          -> settings.longMeetingDefaultStrategy
-            RecordingMode.REAL_TIME_TRANSLATION -> settings.translationDefaultStrategy
-        }
-    }
 
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.88f
 
@@ -100,7 +59,6 @@ fun NewSessionDialog(
             tonalElevation = 0.dp
         ) {
             Column {
-                // ── Gradient header ──────────────────────────────────────────
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -115,24 +73,27 @@ fun NewSessionDialog(
                     ) {
                         Column {
                             Text(
-                                text = stringResource(R.string.new_session_dialog_title),
+                                text = stringResource(R.string.interpretation_dialog_title),
                                 style = MaterialTheme.typography.titleLarge,
                                 fontWeight = FontWeight.Bold,
                                 color = Color.White
                             )
                             Text(
-                                text = stringResource(R.string.new_session_recording_mode),
+                                text = stringResource(R.string.interpretation_dialog_subtitle),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = Color.White.copy(alpha = 0.75f)
                             )
                         }
                         IconButton(onClick = onDismiss) {
-                            Icon(AppIcons.Close, contentDescription = stringResource(R.string.cancel), tint = Color.White)
+                            Icon(
+                                AppIcons.Close,
+                                contentDescription = stringResource(R.string.cancel),
+                                tint = Color.White
+                            )
                         }
                     }
                 }
 
-                // ── Scrollable body ──────────────────────────────────────────
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -140,28 +101,38 @@ fun NewSessionDialog(
                         .padding(20.dp),
                     verticalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
-                    // Language selector — shown first so the user picks the output language
-                    // before choosing a mode. For REAL_TIME_TRANSLATION it is the translation
-                    // target; for all other modes it selects which locale's system prompt is used.
-                    LanguageSelector(
-                        label = if (selectedMode == RecordingMode.REAL_TIME_TRANSLATION) {
-                            stringResource(R.string.new_session_output_language)
-                        } else {
-                            stringResource(R.string.new_session_output_language_label)
-                        },
-                        languages = languages,
-                        selectedCode = outputLanguage,
-                        showAutoOption = false,
-                        onLanguageSelected = { outputLanguage = it }
-                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(
+                            text = stringResource(R.string.interpretation_direction_label),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_auto),
+                            description = stringResource(R.string.interpretation_direction_auto_desc),
+                            isSelected = direction == null,
+                            onClick = { direction = null }
+                        )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_zh),
+                            description = stringResource(R.string.interpretation_direction_zh_desc),
+                            isSelected = direction == "zh",
+                            onClick = { direction = "zh" }
+                        )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_en),
+                            description = stringResource(R.string.interpretation_direction_en_desc),
+                            isSelected = direction == "en",
+                            onClick = { direction = "en" }
+                        )
+                    }
 
-                    // Combined name/topic field
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                         OutlinedTextField(
                             value = sessionTopic,
                             onValueChange = { sessionTopic = it },
-                            label = { Text(stringResource(R.string.new_session_name_label)) },
-                            placeholder = { Text(stringResource(R.string.new_session_name_hint)) },
+                            label = { Text(stringResource(R.string.interpretation_topic_label)) },
+                            placeholder = { Text(stringResource(R.string.interpretation_topic_hint)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true,
                             shape = MaterialTheme.shapes.medium
@@ -175,50 +146,40 @@ fun NewSessionDialog(
                         }
                     }
 
-                    // Mode cards
-                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        RecordingMode.values().forEach { mode ->
-                            val intervalLabel = if (settings.llmEnabled) {
-                                if (insightStrategy == InsightStrategy.END_OF_SESSION && mode == selectedMode) {
-                                    stringResource(R.string.insight_strategy_batch)
-                                } else {
-                                    when (mode) {
-                                        RecordingMode.SIMPLE_LISTENING      -> "${settings.simpleListeningIntervalSeconds}s"
-                                        RecordingMode.SHORT_MEETING         -> "${settings.shortMeetingIntervalSeconds}s"
-                                        RecordingMode.LONG_MEETING          -> "${settings.longMeetingIntervalMinutes}min"
-                                        RecordingMode.REAL_TIME_TRANSLATION -> "${settings.translationIntervalSeconds}s"
-                                    }
-                                }
-                            } else null
-
-                            ModeCard(
-                                mode = mode,
-                                isSelected = mode == selectedMode,
-                                onClick = { selectedMode = mode },
-                                insightIntervalLabel = intervalLabel
+                    Surface(
+                        modifier = Modifier.fillMaxWidth(),
+                        shape = MaterialTheme.shapes.medium,
+                        color = ModeEmeraldTint.copy(alpha = 0.10f),
+                        tonalElevation = 0.dp
+                    ) {
+                        Row(
+                            modifier = Modifier.padding(14.dp),
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            verticalAlignment = Alignment.Top
+                        ) {
+                            Icon(
+                                imageVector = AppIcons.Info,
+                                contentDescription = null,
+                                tint = ModeEmeraldTint,
+                                modifier = Modifier.size(18.dp)
+                            )
+                            Text(
+                                text = stringResource(R.string.interpretation_offline_note),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                     }
 
-                    // Insight strategy selector — shown only when LLM is enabled.
-                    if (settings.llmEnabled) {
-                        InsightStrategySelector(
-                            selected = insightStrategy,
-                            onStrategySelected = { insightStrategy = it }
-                        )
-                    }
-
-                    // Primary CTA
                     com.hearopilot.app.ui.components.GradientButton(
-                        text = stringResource(R.string.start),
+                        text = stringResource(R.string.interpretation_start),
                         onClick = {
-                            val langArg = outputLanguage.ifEmpty { null }
                             val nameAndTopic = sessionTopic.trim().takeIf { it.isNotBlank() }
                             onConfirm(
                                 nameAndTopic,
-                                selectedMode,
-                                langArg,
-                                insightStrategy,
+                                RecordingMode.REAL_TIME_TRANSLATION,
+                                direction,
+                                InsightStrategy.END_OF_SESSION,
                                 nameAndTopic
                             )
                         },
@@ -230,31 +191,18 @@ fun NewSessionDialog(
     }
 }
 
-/**
- * Selectable card for a recording mode.
- * Optionally shows an insight-interval badge when the LLM is active.
- */
 @Composable
-private fun ModeCard(
-    mode: RecordingMode,
+private fun DirectionOption(
+    title: String,
+    description: String,
     isSelected: Boolean,
-    onClick: () -> Unit,
-    insightIntervalLabel: String? = null
+    onClick: () -> Unit
 ) {
-    val accentColor = when (mode) {
-        RecordingMode.SIMPLE_LISTENING      -> ModeSkyBlueTint
-        RecordingMode.SHORT_MEETING         -> ModeShortMeetingTint
-        RecordingMode.LONG_MEETING          -> ModeAmberTint
-        RecordingMode.REAL_TIME_TRANSLATION -> ModeEmeraldTint
-    }
-    val borderColor = if (isSelected) accentColor else MaterialTheme.colorScheme.outlineVariant
-    val bgColor = if (isSelected) accentColor.copy(alpha = 0.07f) else MaterialTheme.colorScheme.surface
-
-    val icon = when (mode) {
-        RecordingMode.SIMPLE_LISTENING      -> AppIcons.ModeSimpleListening
-        RecordingMode.SHORT_MEETING         -> AppIcons.ModeShortMeeting
-        RecordingMode.LONG_MEETING          -> AppIcons.ModeLongMeeting
-        RecordingMode.REAL_TIME_TRANSLATION -> AppIcons.ModeTranslation
+    val borderColor = if (isSelected) ModeEmeraldTint else MaterialTheme.colorScheme.outlineVariant
+    val bgColor = if (isSelected) {
+        ModeEmeraldTint.copy(alpha = 0.07f)
+    } else {
+        MaterialTheme.colorScheme.surface
     }
 
     Row(
@@ -270,113 +218,27 @@ private fun ModeCard(
             .clickable(onClick = onClick)
             .padding(14.dp),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(14.dp)
+        horizontalArrangement = Arrangement.spacedBy(12.dp)
     ) {
-        // Icon container
-        Box(
-            modifier = Modifier
-                .size(40.dp)
-                .background(
-                    color = if (isSelected) accentColor.copy(alpha = 0.15f)
-                            else MaterialTheme.colorScheme.surfaceVariant,
-                    shape = MaterialTheme.shapes.small
-                ),
-            contentAlignment = Alignment.Center
-        ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                modifier = Modifier.size(20.dp)
-            )
-        }
-
         Column(modifier = Modifier.weight(1f)) {
             Text(
-                text = when (mode) {
-                    RecordingMode.SIMPLE_LISTENING      -> stringResource(R.string.mode_simple_listening)
-                    RecordingMode.SHORT_MEETING         -> stringResource(R.string.mode_short_meeting)
-                    RecordingMode.LONG_MEETING          -> stringResource(R.string.mode_long_meeting)
-                    RecordingMode.REAL_TIME_TRANSLATION -> stringResource(R.string.mode_translation_live)
-                },
+                text = title,
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurface
+                color = if (isSelected) ModeEmeraldTint else MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = when (mode) {
-                    RecordingMode.SIMPLE_LISTENING      -> stringResource(R.string.mode_simple_listening_desc)
-                    RecordingMode.SHORT_MEETING         -> stringResource(R.string.mode_short_meeting_desc)
-                    RecordingMode.LONG_MEETING          -> stringResource(R.string.mode_long_meeting_desc)
-                    RecordingMode.REAL_TIME_TRANSLATION -> stringResource(R.string.mode_translation_desc)
-                },
+                text = description,
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
-
-            // Insight interval badge — shown only when LLM is active
-            if (insightIntervalLabel != null) {
-                Spacer(modifier = Modifier.height(4.dp))
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Icon(
-                        imageVector = AppIcons.Schedule,
-                        contentDescription = null,
-                        tint = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.size(12.dp)
-                    )
-                    Text(
-                        text = stringResource(R.string.new_session_insight_interval, insightIntervalLabel),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (isSelected) accentColor else MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
         }
-
         if (isSelected) {
             Icon(
                 imageVector = AppIcons.CheckCircle,
                 contentDescription = null,
-                tint = accentColor,
+                tint = ModeEmeraldTint,
                 modifier = Modifier.size(20.dp)
-            )
-        }
-    }
-}
-
-/**
- * Two-chip selector for the insight generation strategy.
- */
-@Composable
-private fun InsightStrategySelector(
-    selected: InsightStrategy,
-    onStrategySelected: (InsightStrategy) -> Unit
-) {
-    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Text(
-            text = stringResource(R.string.insight_strategy_label),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(
-                selected = selected == InsightStrategy.REAL_TIME,
-                onClick = { onStrategySelected(InsightStrategy.REAL_TIME) },
-                label = { Text(stringResource(R.string.insight_strategy_realtime)) },
-                leadingIcon = {
-                    Icon(AppIcons.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
-                }
-            )
-            FilterChip(
-                selected = selected == InsightStrategy.END_OF_SESSION,
-                onClick = { onStrategySelected(InsightStrategy.END_OF_SESSION) },
-                label = { Text(stringResource(R.string.insight_strategy_batch)) },
-                leadingIcon = {
-                    Icon(AppIcons.Summarize, contentDescription = null, modifier = Modifier.size(16.dp))
-                }
             )
         }
     }

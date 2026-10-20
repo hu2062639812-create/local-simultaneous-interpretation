@@ -10,12 +10,15 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.hearopilot.app.ui.icons.AppIcons
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -56,12 +59,15 @@ fun InsightsSection(
     isLlmEnabled: Boolean = true,
     isLlmAvailable: Boolean = true,
     isFinalizingSession: Boolean = false,
-    isRecording: Boolean = false,
+    isSessionActive: Boolean = false,
     insightStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
     batchProgress: BatchInsightProgress = BatchInsightProgress.Idle,
     onDownloadLlm: () -> Unit = {},
+    onDeleteInsight: (String) -> Unit = {},
     modifier: Modifier = Modifier
 ) {
+    var pendingDelete by remember { mutableStateOf<LlmInsight?>(null) }
+
     Box(modifier = modifier) {
         if (!isLlmEnabled) {
             // LLM disabled by the user in Settings — show informational message, not download prompt
@@ -143,7 +149,7 @@ fun InsightsSection(
                             modifier = Modifier.fillMaxWidth(),
                             // Downloading the LLM while STT is active would load ~1 GB into RAM
                             // on top of the already-loaded STT model, causing OOM / freeze.
-                            enabled = !isRecording
+                            enabled = !isSessionActive
                         )
                     }
                 }
@@ -151,8 +157,8 @@ fun InsightsSection(
                 // Bottom spacer to push content toward center when space allows
                 Spacer(modifier = Modifier.weight(1f, fill = false))
             }
-        } else if (insightStrategy == InsightStrategy.END_OF_SESSION && isRecording && insights.isEmpty()) {
-            // END_OF_SESSION mode: recording in progress — show info card.
+        } else if (insightStrategy == InsightStrategy.END_OF_SESSION && isSessionActive && insights.isEmpty()) {
+            // END_OF_SESSION mode: session in progress — show info card.
             Box(
                 modifier = Modifier.fillMaxSize(),
                 contentAlignment = Alignment.Center
@@ -169,7 +175,7 @@ fun InsightsSection(
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                     Text(
-                        text = stringResource(R.string.batch_insights_pending),
+                        text = stringResource(R.string.summary_pending_hint),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Light,
@@ -258,7 +264,7 @@ fun InsightsSection(
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
                     Text(
-                        text = stringResource(R.string.insights_empty),
+                        text = stringResource(R.string.summary_empty),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = FontWeight.Light,
@@ -280,7 +286,11 @@ fun InsightsSection(
                 verticalArrangement = Arrangement.spacedBy(12.dp)
             ) {
                 items(insights) { insight ->
-                    InsightItem(insight, segments)
+                    InsightItem(
+                        insight = insight,
+                        segments = segments,
+                        onDelete = { pendingDelete = insight }
+                    )
                 }
                 if (isFinalizingSession) {
                     item { ShimmerInsightCard(modifier = Modifier.padding(horizontal = 0.dp)) }
@@ -288,10 +298,40 @@ fun InsightsSection(
             }
         }
     }
+
+    pendingDelete?.let { insight ->
+        AlertDialog(
+            onDismissRequest = { pendingDelete = null },
+            title = { Text(stringResource(R.string.delete_summary_title)) },
+            text = { Text(stringResource(R.string.delete_summary_message)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onDeleteInsight(insight.id)
+                        pendingDelete = null
+                    },
+                    colors = ButtonDefaults.textButtonColors(
+                        contentColor = MaterialTheme.colorScheme.error
+                    )
+                ) {
+                    Text(stringResource(R.string.delete))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingDelete = null }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
 }
 
 @Composable
-private fun InsightItem(insight: LlmInsight, segments: List<TranscriptionSegment>) {
+private fun InsightItem(
+    insight: LlmInsight,
+    segments: List<TranscriptionSegment>,
+    onDelete: () -> Unit
+) {
     // Create a map for fast lookup of segments by ID
     val segmentMap = remember(segments) {
         segments.associateBy { it.id }
@@ -301,6 +341,8 @@ private fun InsightItem(insight: LlmInsight, segments: List<TranscriptionSegment
     val sourceSegments = remember(insight.sourceSegmentIds, segmentMap) {
         insight.sourceSegmentIds.mapNotNull { id -> segmentMap[id] }
     }
+
+    val copySummary = rememberCopySummary(insight)
 
     Surface(
         modifier = Modifier
@@ -316,26 +358,50 @@ private fun InsightItem(insight: LlmInsight, segments: List<TranscriptionSegment
         shadowElevation = 0.dp
     ) {
         Column(
-            modifier = Modifier.padding(16.dp)
+            modifier = Modifier.padding(start = 16.dp, top = 16.dp, end = 8.dp, bottom = 16.dp)
         ) {
-            // Insight indicator with title (if present)
+            // Title, generation time, and per-summary actions
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
+                verticalAlignment = Alignment.Top,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 Icon(
                     imageVector = AppIcons.AutoAwesome,
                     contentDescription = null,
                     tint = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.size(20.dp)
+                    modifier = Modifier
+                        .padding(top = 2.dp)
+                        .size(20.dp)
                 )
-                Text(
-                    text = insight.title ?: stringResource(R.string.insight_label),
-                    style = MaterialTheme.typography.titleMedium,
-                    color = MaterialTheme.colorScheme.onSurface,
-                    fontWeight = FontWeight.Bold
-                )
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(4.dp)
+                ) {
+                    Text(
+                        text = summaryTitle(insight, stringResource(R.string.tab_summary)),
+                        style = MaterialTheme.typography.titleMedium,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        fontWeight = FontWeight.Bold
+                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(12.dp)
+                        )
+                        Text(
+                            text = "${stringResource(R.string.summary_time_label)}: ${formatSummaryTime(insight.timestamp)}",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                SummaryActions(onCopy = copySummary, onDelete = onDelete)
             }
 
             Spacer(modifier = Modifier.height(12.dp))

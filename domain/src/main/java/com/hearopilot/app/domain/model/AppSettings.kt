@@ -35,9 +35,8 @@ data class AppSettings(
     val llmEnabled: Boolean = true, // When false, LLM is never loaded during recording sessions
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
     // LLM model variant — determines which GGUF file is downloaded and used.
-    // Default Q8_0 preserves backward compatibility for existing installs;
-    // DeviceTierDetector surfaces the recommended variant in Settings UI.
-    val llmModelVariant: LlmModelVariant = LlmModelVariant.Q8_0,
+    // Qwen 3.5 0.8B is the default because interpretation needs solid Chinese support.
+    val llmModelVariant: LlmModelVariant = LlmModelVariant.QWEN3_5_Q8_0,
 
     // VAD parameters for better accuracy vs speed trade-off
     val vadMinSilenceDuration: Float = 0.5F,
@@ -54,7 +53,7 @@ data class AppSettings(
     val simpleListeningDefaultStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
     val shortMeetingDefaultStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
     val longMeetingDefaultStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
-    val translationDefaultStrategy: InsightStrategy = InsightStrategy.REAL_TIME,
+    val translationDefaultStrategy: InsightStrategy = InsightStrategy.END_OF_SESSION,
 
     // LLM sampler configuration — controls token selection during generation.
     val llmSamplerConfig: LlmSamplerConfig = LlmSamplerConfig(),

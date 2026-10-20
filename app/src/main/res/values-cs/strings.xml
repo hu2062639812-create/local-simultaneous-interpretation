@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Spustit</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI zpracovává váš záznam…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Moje přepisy</string>
     <string name="new_transcription">Nový přepis</string>
     <string name="session_unnamed">(Bez názvu)</string>
@@ -390,7 +390,7 @@ Vypište pouze překlad. Žádná vysvětlení, žádné popisky, žádné před
     <string name="onboarding_languages_subtitle">Dostupné pro přepis a překlad</string>
     <string name="onboarding_languages_continue">Pokračovat</string>
 
-    <string name="onboarding_message_1">HearoPilot naslouchá, aby jste nemuseli psát poznámky.</string>
+    <string name="onboarding_message_1">Local Interpreter naslouchá, aby jste nemuseli psát poznámky.</string>
     <string name="onboarding_message_2">Veškeré zpracování AI probíhá na vašem zařízení: žádná data neodcházejí.</string>
     <string name="onboarding_message_3">Přepisujte přednášky, schůzky a konverzace v reálném čase.</string>
     <string name="onboarding_message_4">Automatická shrnutí vám pomáhají soustředit se na to, co je nejdůležitější.</string>
@@ -399,8 +399,8 @@ Vypište pouze překlad. Žádná vysvětlení, žádné popisky, žádné před
     <string name="onboarding_message_7">Ideální pro studenty, profesionály a každého, kdo mluví.</string>
     <string name="onboarding_message_8">Kdykoliv si prohlédněte své přepisy a poznatky offline.</string>
     <string name="onboarding_message_9">Jeden dotek na spuštění, jeden dotek na zastavení: je to tak jednoduché.</string>
-    <string name="onboarding_message_10">Děkujeme, že jste si vybrali HearoPilot.</string>
-    <string name="onboarding_message_11">Používejte HearoPilot s Bluetooth mikrofonem pro přepis na dálku.</string>
+    <string name="onboarding_message_10">Děkujeme, že jste si vybrali Local Interpreter.</string>
+    <string name="onboarding_message_11">Používejte Local Interpreter s Bluetooth mikrofonem pro přepis na dálku.</string>
     <string name="json_field_title">název</string>
     <string name="json_field_summary">shrnutí</string>
     <string name="json_field_action_items">akce</string>

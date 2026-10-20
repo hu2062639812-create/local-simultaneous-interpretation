@@ -56,7 +56,7 @@ class TranscriptionRepositoryImpl @Inject constructor(
                 createdAt = now,
                 lastModifiedAt = now,
                 mode = mode,
-                inputLanguage = "it", // Auto-detected by STT, default to Italian
+                inputLanguage = "auto", // Language is auto-detected by the ASR model
                 outputLanguage = outputLanguage,
                 insightStrategy = insightStrategy,
                 topic = topic?.takeIf { it.isNotBlank() }
@@ -98,6 +98,18 @@ class TranscriptionRepositoryImpl @Inject constructor(
         return try {
             val trimmedName = newName?.trim()?.takeIf { it.isNotBlank() }
             sessionDao.updateName(sessionId, trimmedName)
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun updateSegmentTranslation(
+        segmentId: String,
+        translatedText: String
+    ): Result<Unit> {
+        return try {
+            segmentDao.updateTranslation(segmentId, translatedText)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -198,6 +210,17 @@ class TranscriptionRepositoryImpl @Inject constructor(
     override suspend fun updateInsightTitle(insightId: String, newTitle: String?): Result<Unit> {
         return try {
             insightDao.updateTitle(insightId, newTitle?.trim()?.ifBlank { null })
+            Result.success(Unit)
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    override suspend fun deleteInsight(insightId: String): Result<Unit> {
+        return try {
+            val sessionId = insightDao.getSessionIdForInsight(insightId)
+            insightDao.deleteById(insightId)
+            sessionId?.let { updateSessionModifiedTime(it) }
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)

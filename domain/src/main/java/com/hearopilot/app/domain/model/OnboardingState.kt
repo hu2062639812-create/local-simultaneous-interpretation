@@ -4,7 +4,8 @@
  * Onboarding step tracking.
  */
 enum class OnboardingStep {
-    WELCOME,        // Initial welcome screen
+    INTERFACE_LANGUAGE, // First-run UI language selection (Chinese / English)
+    WELCOME,        // Welcome screen
     LANGUAGES,      // Supported languages showcase (informational, no selection)
     STT_DOWNLOAD,   // STT model download
     LLM_DOWNLOAD,   // LLM model download

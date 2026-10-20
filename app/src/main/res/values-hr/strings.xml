@@ -1,6 +1,6 @@
 ﻿<resources>
     <!-- App Info -->
-    <string name="app_name">HearoPilot</string>
+    <string name="app_name">Local Interpreter</string>
 
     <!-- Common Actions -->
     <string name="start">Pokreni</string>
@@ -36,7 +36,7 @@
     <string name="notification_llm_processing_text">AI obrađuje vašu snimku…</string>
 
     <!-- Sessions Screen -->
-    <string name="sessions_title">HearoPilot</string>
+    <string name="sessions_title">Local Interpreter</string>
     <string name="sessions_subtitle">Moje transkripcije</string>
     <string name="new_transcription">Nova transkripcija</string>
     <string name="session_unnamed">(Bez naziva)</string>
@@ -391,7 +391,7 @@ Ispišite samo prijevod. Bez objašnjenja, bez oznaka, bez prefiksa.</string>
     <string name="onboarding_languages_continue">Nastavi</string>
 
     <!-- Onboarding Messages -->
-    <string name="onboarding_message_1">HearoPilot sluša tako da ne trebate voditi bilješke.</string>
+    <string name="onboarding_message_1">Local Interpreter sluša tako da ne trebate voditi bilješke.</string>
     <string name="onboarding_message_2">Sva obrada AI-ja odvija se na vašem uređaju: vaši podaci nikada ne napuštaju.</string>
     <string name="onboarding_message_3">Transkribuirajte predavanja, sastanke i razgovore u realnom vremenu.</string>
     <string name="onboarding_message_4">Automatski sažeci pomažu vam da se fokusirate na najvažnije.</string>
@@ -400,8 +400,8 @@ Ispišite samo prijevod. Bez objašnjenja, bez oznaka, bez prefiksa.</string>
     <string name="onboarding_message_7">Odličan za studente, stručnjake i sve koji govore.</string>
     <string name="onboarding_message_8">Pregledajte svoje transkripcije i uvide bilo kada, offline.</string>
     <string name="onboarding_message_9">Jedno dodirivanje za početak, jedno dodirivanje za zaustavljanje: tako je jednostavno.</string>
-    <string name="onboarding_message_10">Hvala što ste odabrali HearoPilot.</string>
-    <string name="onboarding_message_11">Koristite HearoPilot s Bluetooth mikrofonom za transkripciju s udaljenosti.</string>
+    <string name="onboarding_message_10">Hvala što ste odabrali Local Interpreter.</string>
+    <string name="onboarding_message_11">Koristite Local Interpreter s Bluetooth mikrofonom za transkripciju s udaljenosti.</string>
     <string name="json_field_title">naslov</string>
     <string name="json_field_summary">sazetak</string>
     <string name="json_field_action_items">akcije</string>

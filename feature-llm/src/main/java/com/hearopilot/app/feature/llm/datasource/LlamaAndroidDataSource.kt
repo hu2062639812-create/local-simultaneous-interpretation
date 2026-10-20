@@ -7,6 +7,7 @@ import com.hearopilot.app.domain.model.LlmSamplerConfig
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 
 /**
  * llama.android implementation of LlmDataSource.
@@ -21,6 +22,11 @@ class LlamaAndroidDataSource(
 
     companion object {
         private const val TAG = "LlamaAndroidDataSource"
+
+        // Bounds how long we wait for a stale inference/load state to clear. Model
+        // loading itself gets a separate, longer budget.
+        private const val STATE_WAIT_TIMEOUT_MS = 60_000L
+        private const val MODEL_LOAD_TIMEOUT_MS = 180_000L
     }
 
     override suspend fun loadModel(modelPath: String, systemPrompt: String?, nThreadsHint: Int): Result<Unit> = runCatching {
@@ -38,7 +44,11 @@ class LlamaAndroidDataSource(
         }
 
         // Wait for initialization (from InferenceEngineImpl.kt state machine)
-        inferenceEngine.state.first { it !is InferenceEngine.State.Initializing }
+        withTimeoutOrNull(MODEL_LOAD_TIMEOUT_MS) {
+            inferenceEngine.state.first { it !is InferenceEngine.State.Initializing }
+        } ?: throw IllegalStateException(
+            "Timed out waiting for LLM engine initialization (state=${inferenceEngine.state.value})"
+        )
 
         // After recovery, if still in Error, we cannot proceed — propagate the cause.
         val stateAfterRecovery = inferenceEngine.state.value
@@ -50,7 +60,11 @@ class LlamaAndroidDataSource(
         inferenceEngine.loadModel(modelPath, nThreadsHint)
 
         // Wait for model to be ready
-        inferenceEngine.state.first { it !is InferenceEngine.State.LoadingModel }
+        withTimeoutOrNull(MODEL_LOAD_TIMEOUT_MS) {
+            inferenceEngine.state.first { it !is InferenceEngine.State.LoadingModel }
+        } ?: throw IllegalStateException(
+            "Timed out waiting for LLM model load (state=${inferenceEngine.state.value})"
+        )
 
         // Check if we're in error state
         when (val currentState = inferenceEngine.state.value) {
@@ -79,11 +93,17 @@ class LlamaAndroidDataSource(
     }
 
     override suspend fun updateSystemPrompt(systemPrompt: String): Result<Unit> = runCatching {
-        // Wait for model to be ready before updating
-        inferenceEngine.state.first {
-            it !is InferenceEngine.State.LoadingModel &&
-            it !is InferenceEngine.State.Initializing
-        }
+        // Wait for model to be ready before updating. A stale ProcessingUserPrompt
+        // state (e.g. a cancelled inference) must surface as an error instead of
+        // blocking the translation queue forever.
+        withTimeoutOrNull(STATE_WAIT_TIMEOUT_MS) {
+            inferenceEngine.state.first {
+                it !is InferenceEngine.State.LoadingModel &&
+                it !is InferenceEngine.State.Initializing
+            }
+        } ?: throw IllegalStateException(
+            "Timed out waiting for LLM engine (state=${inferenceEngine.state.value})"
+        )
 
         when (val currentState = inferenceEngine.state.value) {
             is InferenceEngine.State.Error -> throw currentState.exception
