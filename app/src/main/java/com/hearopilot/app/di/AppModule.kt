@@ -3,6 +3,7 @@
 import android.content.Context
 import com.arm.aichat.InferenceEngine
 import com.k2fsa.sherpa.onnx.OfflineModelConfig
+import com.k2fsa.sherpa.onnx.OfflineOmnilingualAsrCtcModelConfig
 import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.OfflineRecognizerConfig
 import com.k2fsa.sherpa.onnx.OfflineSenseVoiceModelConfig
@@ -20,6 +21,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -30,7 +32,8 @@ import javax.inject.Singleton
 object AppModule {
 
     @Provides
-    fun provideOfflineRecognizer(
+    @Named("sensevoice")
+    fun provideSenseVoiceRecognizer(
         @ApplicationContext context: Context,
         modelDownloadManager: ModelDownloadManager
     ): OfflineRecognizer {
@@ -53,6 +56,33 @@ object AppModule {
         Log.i("AppModule", "STT: SenseVoice, ${modelConfig.numThreads} threads (fixed)")
 
         // Create recognizer WITHOUT assetManager (loading from file system)
+        return OfflineRecognizer(
+            assetManager = null,
+            config = OfflineRecognizerConfig(modelConfig = modelConfig)
+        )
+    }
+
+    @Provides
+    @Named("omnilingual")
+    fun provideOmnilingualRecognizer(
+        @ApplicationContext context: Context,
+        modelDownloadManager: ModelDownloadManager
+    ): OfflineRecognizer {
+        // Omnilingual covers 1600 languages including Luganda, which SenseVoice and
+        // Whisper do not support. Loaded only for Luganda sessions so its ~365 MB
+        // weights never compete with the SenseVoice model in memory.
+        val lugandaModelPath = modelDownloadManager.getLugandaModelPath()
+            ?: throw IllegalStateException("Luganda model not downloaded.")
+
+        val modelConfig = OfflineModelConfig(
+            omnilingual = OfflineOmnilingualAsrCtcModelConfig(
+                model = "$lugandaModelPath/model.int8.onnx"
+            ),
+            tokens = "$lugandaModelPath/tokens.txt",
+            numThreads = 2
+        )
+        Log.i("AppModule", "STT: Omnilingual, ${modelConfig.numThreads} threads (fixed)")
+
         return OfflineRecognizer(
             assetManager = null,
             config = OfflineRecognizerConfig(modelConfig = modelConfig)

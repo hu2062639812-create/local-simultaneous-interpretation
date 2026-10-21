@@ -28,6 +28,7 @@ import dagger.Provides
 import dagger.hilt.InstallIn
 import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
+import javax.inject.Named
 import javax.inject.Singleton
 
 /**
@@ -41,11 +42,18 @@ object DataModule {
     @Singleton
     fun provideSttDataSource(
         @ApplicationContext context: Context,
-        recognizerProvider: javax.inject.Provider<OfflineRecognizer>,
+        @Named("sensevoice") senseVoiceRecognizerProvider: javax.inject.Provider<OfflineRecognizer>,
+        @Named("omnilingual") omnilingualRecognizerProvider: javax.inject.Provider<OfflineRecognizer>,
         vadProvider: javax.inject.Provider<Vad>
     ): SttDataSource {
         val audioManager = context.getSystemService(AudioManager::class.java)
-        return SherpaOnnxDataSource(context, recognizerProvider, vadProvider, audioManager)
+        return SherpaOnnxDataSource(
+            context,
+            senseVoiceRecognizerProvider,
+            omnilingualRecognizerProvider,
+            vadProvider,
+            audioManager
+        )
     }
 
     @Provides

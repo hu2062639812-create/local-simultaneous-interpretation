@@ -104,6 +104,36 @@ object AppLicenses {
         ),
 
         LicenseEntry(
+            id = "omnilingual_asr",
+            componentName = "Omnilingual ASR 300M CTC (int8)",
+            licenseType = "Apache License 2.0",
+            shortNotice = "© Meta Omnilingual ASR Team. Licensed under the Apache License, Version 2.0.",
+            fullText = """
+                Apache License
+                Version 2.0, January 2004
+                http://www.apache.org/licenses/
+
+                Omnilingual ASR code and models
+                Copyright (c) Meta Platforms, Inc. and affiliates.
+
+                Licensed under the Apache License, Version 2.0 (the "License");
+                you may not use this file except in compliance with the License.
+                You may obtain a copy of the License at
+
+                    http://www.apache.org/licenses/LICENSE-2.0
+
+                Unless required by applicable law or agreed to in writing, software
+                distributed under the License is distributed on an "AS IS" BASIS,
+                WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+                See the License for the specific language governing permissions and
+                limitations under the License.
+            """.trimIndent(),
+            primaryUrl = "https://www.apache.org/licenses/LICENSE-2.0",
+            githubUrl = "https://github.com/facebookresearch/omnilingual-asr",
+            secondaryUrl = "https://huggingface.co/csukuangfj/sherpa-onnx-omnilingual-asr-1600-languages-300M-ctc-int8-2025-11-12"
+        ),
+
+        LicenseEntry(
             id = "llama_cpp",
             componentName = "llama.cpp",
             licenseType = "MIT License",

@@ -1,7 +1,8 @@
-﻿package com.hearopilot.app.data.datasource
+package com.hearopilot.app.data.datasource
 
 import android.content.Context
 import android.util.Log
+import com.hearopilot.app.data.config.LugandaModelConfig
 import com.hearopilot.app.data.config.ModelConfig
 import com.hearopilot.app.data.config.DefaultModelConfig
 import kotlinx.coroutines.Dispatchers
@@ -236,6 +237,28 @@ class ModelDownloadManager(
     }
 
     /**
+     * Check if the optional Luganda (Omnilingual) model is already downloaded.
+     */
+    fun isLugandaModelDownloaded(): Boolean {
+        val dir = File(modelsDir, LugandaModelConfig.DIR_NAME)
+        return LugandaModelConfig.FILES.all { filename ->
+            val file = File(dir, filename)
+            file.exists() && file.length() > 0
+        }
+    }
+
+    /**
+     * Get the path to the Luganda model directory, or null if it is not downloaded.
+     */
+    fun getLugandaModelPath(): String? {
+        return if (isLugandaModelDownloaded()) {
+            File(modelsDir, LugandaModelConfig.DIR_NAME).absolutePath
+        } else {
+            null
+        }
+    }
+
+    /**
      * Download all STT model files sequentially with resume capability.
      *
      * Each file is downloaded to a .partial temp file and renamed to its final name
@@ -247,36 +270,69 @@ class ModelDownloadManager(
      * This mirrors the LLM resume strategy so that any network interruption, even
      * on the first download attempt, does not force a full restart on retry.
      */
-    fun downloadSttModel(): Flow<DownloadProgress> = flow {
-        val sttDir = File(modelsDir, STT_DIR_NAME)
-        sttDir.mkdirs()
+    fun downloadSttModel(): Flow<DownloadProgress> = downloadModelFiles(
+        dirName = STT_DIR_NAME,
+        baseUrl = modelConfig.sttBaseUrl,
+        files = modelConfig.sttFiles,
+        isComplete = { isSttModelDownloaded() },
+        estimatedSize = ::estimatedSttFileSize,
+        label = "STT"
+    )
 
-        if (isSttModelDownloaded()) {
-            Log.i(TAG, "STT model already downloaded: ${sttDir.absolutePath}")
-            emit(DownloadProgress(100_000_000, 100_000_000, 100))
+    /**
+     * Download the optional Luganda (Omnilingual) STT model.
+     *
+     * Uses the same resumable multi-file strategy as the default STT model, which
+     * matters in low-connectivity areas: an interrupted 365 MB download resumes
+     * from the last byte instead of restarting.
+     */
+    fun downloadLugandaModel(): Flow<DownloadProgress> = downloadModelFiles(
+        dirName = LugandaModelConfig.DIR_NAME,
+        baseUrl = LugandaModelConfig.BASE_URL,
+        files = LugandaModelConfig.FILES,
+        isComplete = { isLugandaModelDownloaded() },
+        estimatedSize = LugandaModelConfig::estimatedSize,
+        label = "Luganda"
+    )
+
+    private fun downloadModelFiles(
+        dirName: String,
+        baseUrl: String,
+        files: List<String>,
+        isComplete: () -> Boolean,
+        estimatedSize: (String) -> Long,
+        label: String
+    ): Flow<DownloadProgress> = flow {
+        val targetDir = File(modelsDir, dirName)
+        targetDir.mkdirs()
+
+        if (isComplete()) {
+            Log.i(TAG, "$label model already downloaded: ${targetDir.absolutePath}")
+            val bytes = files.sumOf { File(targetDir, it).length() }
+            emit(DownloadProgress(bytes, bytes, 100))
             return@flow
         }
 
         // Best-effort HEAD requests for real file sizes; fall back to estimates on failure
         // so that a missing network at retry time does not block the size lookup.
-        Log.i(TAG, "Fetching actual file sizes...")
+        Log.i(TAG, "Fetching actual file sizes for $label...")
         val actualFileSizes = mutableMapOf<String, Long>()
-        modelConfig.sttFiles.forEach { filename ->
+        files.forEach { filename ->
             try {
-                val connection = URL("${modelConfig.sttBaseUrl}/$filename").openConnection() as HttpURLConnection
+                val connection = URL("$baseUrl/$filename").openConnection() as HttpURLConnection
                 connection.requestMethod = "HEAD"
                 connection.connectTimeout = 15000
                 connection.instanceFollowRedirects = true
                 connection.connect()
                 val size = connection.contentLengthLong
-                actualFileSizes[filename] = if (size > 0) size else estimatedSttFileSize(filename)
+                actualFileSizes[filename] = if (size > 0) size else estimatedSize(filename)
                 connection.disconnect()
                 Log.i(TAG, "File $filename: ${size / 1_000_000}MB")
             } catch (e: Exception) {
                 Log.w(TAG, "Could not get size for $filename, using estimate")
                 // Use on-disk size if a .partial is already present (more accurate than hardcoded estimate)
-                val partialSize = File(sttDir, "$filename.partial").takeIf { it.exists() }?.length() ?: 0L
-                actualFileSizes[filename] = partialSize.coerceAtLeast(estimatedSttFileSize(filename))
+                val partialSize = File(targetDir, "$filename.partial").takeIf { it.exists() }?.length() ?: 0L
+                actualFileSizes[filename] = partialSize.coerceAtLeast(estimatedSize(filename))
             }
         }
 
@@ -284,27 +340,27 @@ class ModelDownloadManager(
 
         // Seed with completed files only. Partial-file bytes are added per-file
         // in the loop (startByte) so they are counted exactly once.
-        var totalBytesDownloaded = modelConfig.sttFiles.sumOf { filename ->
-            val f = File(sttDir, filename)
+        var totalBytesDownloaded = files.sumOf { filename ->
+            val f = File(targetDir, filename)
             if (f.exists() && f.length() > 0) f.length() else 0L
         }
 
-        Log.i(TAG, "Total download size: ${totalBytes / 1_000_000}MB, already completed: ${totalBytesDownloaded / 1_000_000}MB")
+        Log.i(TAG, "$label total download size: ${totalBytes / 1_000_000}MB, already completed: ${totalBytesDownloaded / 1_000_000}MB")
 
-        modelConfig.sttFiles.forEachIndexed { index, filename ->
-            val outputFile = File(sttDir, filename)
-            val partialFile = File(sttDir, "$filename.partial")
+        files.forEachIndexed { index, filename ->
+            val outputFile = File(targetDir, filename)
+            val partialFile = File(targetDir, "$filename.partial")
 
             // Skip files that are already fully downloaded
             if (outputFile.exists() && outputFile.length() > 0) {
-                Log.i(TAG, "STT file $filename already complete, skipping")
+                Log.i(TAG, "$label file $filename already complete, skipping")
                 return@forEachIndexed
             }
 
             // Resume from .partial if available (Range request)
             val startByte = partialFile.takeIf { it.exists() }?.length() ?: 0L
 
-            Log.i(TAG, "Downloading STT file ${index + 1}/${modelConfig.sttFiles.size}: $filename" +
+            Log.i(TAG, "Downloading $label file ${index + 1}/${files.size}: $filename" +
                 if (startByte > 0) " (resuming from ${startByte / 1_000_000}MB)" else "")
 
             // Count already-downloaded partial bytes so progress is correct from the start
@@ -312,7 +368,7 @@ class ModelDownloadManager(
 
             var connection: HttpURLConnection? = null
             try {
-                connection = URL("${modelConfig.sttBaseUrl}/$filename").openConnection() as HttpURLConnection
+                connection = URL("$baseUrl/$filename").openConnection() as HttpURLConnection
                 connection.connectTimeout = 15000
                 connection.readTimeout = 15000
                 connection.instanceFollowRedirects = true
@@ -352,7 +408,7 @@ class ModelDownloadManager(
                             }
                         }
 
-                        Log.i(TAG, "STT file $filename complete (${fileBytesWritten / 1_000_000}MB)")
+                        Log.i(TAG, "$label file $filename complete (${fileBytesWritten / 1_000_000}MB)")
                     }
                 }
 
@@ -365,18 +421,18 @@ class ModelDownloadManager(
                 connection?.disconnect()
                 // .partial and all already-completed files are intentionally kept so the
                 // next retry can skip completed files and resume the interrupted one.
-                throw Exception("STT model download failed: ${e.message}")
+                throw Exception("$label model download failed: ${e.message}")
             } finally {
                 connection?.disconnect()
             }
         }
 
-        if (!isSttModelDownloaded()) {
+        if (!isComplete()) {
             throw Exception("Download incomplete: some files are missing or empty")
         }
 
         emit(DownloadProgress(totalBytes, totalBytes, 100))
-        Log.i(TAG, "STT model download completed: ${sttDir.absolutePath}")
+        Log.i(TAG, "$label model download completed: ${targetDir.absolutePath}")
     }.flowOn(Dispatchers.IO)
 
     /** Hardcoded size estimates used as fallback when HEAD requests fail. */

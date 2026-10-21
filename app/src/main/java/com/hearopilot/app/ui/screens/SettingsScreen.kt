@@ -40,6 +40,7 @@ import com.hearopilot.app.domain.model.LlmSamplerConfig
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.ThemeMode
 import com.hearopilot.app.presentation.settings.SettingsViewModel
+import com.hearopilot.app.ui.update.UpdateViewModel
 import kotlin.math.roundToInt
 
 /** URL for the app's Privacy Policy document. */
@@ -62,12 +63,14 @@ fun SettingsScreen(
     onNavigateBack: () -> Unit,
     onNavigateToLlmDownload: () -> Unit,
     onNavigateToLicenses: () -> Unit,
+    updateViewModel: UpdateViewModel,
     viewModel: SettingsViewModel = hiltViewModel()
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val isLlmDownloaded by viewModel.isLlmDownloaded.collectAsStateWithLifecycle()
     val llmDownloadState by viewModel.llmDownloadState.collectAsStateWithLifecycle()
     val activeDownloadVariant by viewModel.activeDownloadVariant.collectAsStateWithLifecycle()
+    val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val appLanguage = AppLocale.current(context)
 
@@ -177,6 +180,13 @@ fun SettingsScreen(
 
             // About & Legal Section
             SettingsSection(title = stringResource(R.string.settings_section_about)) {
+                UpdateCheckSetting(
+                    currentVersion = updateState.currentVersion,
+                    isChecking = updateState.isChecking,
+                    status = updateState.status,
+                    latestVersion = updateState.release?.version,
+                    onCheck = { updateViewModel.checkForUpdates(manual = true) }
+                )
                 ExternalLinkSetting(
                     title = stringResource(R.string.settings_privacy_policy),
                     url = PRIVACY_POLICY_URL
@@ -688,6 +698,79 @@ private fun LicensesNavigationSetting(onClick: () -> Unit) {
                 contentDescription = null,
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
+        }
+    }
+}
+
+/**
+ * Row that checks GitHub for a newer release and reports the result inline.
+ */
+@Composable
+private fun UpdateCheckSetting(
+    currentVersion: String,
+    isChecking: Boolean,
+    status: UpdateViewModel.CheckStatus?,
+    latestVersion: String?,
+    onCheck: () -> Unit
+) {
+    val description = when {
+        isChecking -> stringResource(R.string.settings_checking_updates)
+        status == UpdateViewModel.CheckStatus.UPDATE_AVAILABLE && latestVersion != null ->
+            stringResource(R.string.update_status_available, latestVersion)
+        status == UpdateViewModel.CheckStatus.UP_TO_DATE ->
+            stringResource(R.string.update_status_up_to_date)
+        status == UpdateViewModel.CheckStatus.NO_RELEASE ->
+            stringResource(R.string.update_status_no_release)
+        status == UpdateViewModel.CheckStatus.FAILED ->
+            stringResource(R.string.update_status_failed)
+        else -> stringResource(R.string.settings_check_updates_desc, currentVersion)
+    }
+    val descriptionColor = when (status) {
+        UpdateViewModel.CheckStatus.UPDATE_AVAILABLE -> MaterialTheme.colorScheme.primary
+        UpdateViewModel.CheckStatus.FAILED -> MaterialTheme.colorScheme.error
+        else -> MaterialTheme.colorScheme.onSurfaceVariant
+    }
+
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        enabled = !isChecking,
+        onClick = onCheck
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_check_updates),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = description,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = descriptionColor
+                )
+            }
+            if (isChecking) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.primary
+                )
+            } else {
+                Icon(
+                    imageVector = AppIcons.Refresh,
+                    contentDescription = stringResource(R.string.settings_check_now),
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
         }
     }
 }

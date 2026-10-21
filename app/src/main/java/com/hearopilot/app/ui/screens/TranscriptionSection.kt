@@ -47,6 +47,7 @@ fun TranscriptionSection(
     isRecording: Boolean,
     isPaused: Boolean = false,
     pendingTranslationIds: Set<String>,
+    lugandaMode: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -73,7 +74,8 @@ fun TranscriptionSection(
                 items(segments) { segment ->
                     TranscriptionItem(
                         segment = segment,
-                        isTranslating = segment.id in pendingTranslationIds
+                        isTranslating = segment.id in pendingTranslationIds,
+                        lugandaMode = lugandaMode
                     )
                 }
             }
@@ -151,7 +153,11 @@ private fun TranscriptionEmptyState(
 }
 
 @Composable
-private fun TranscriptionItem(segment: TranscriptionSegment, isTranslating: Boolean) {
+private fun TranscriptionItem(
+    segment: TranscriptionSegment,
+    isTranslating: Boolean,
+    lugandaMode: Boolean
+) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.medium,
@@ -167,7 +173,7 @@ private fun TranscriptionItem(segment: TranscriptionSegment, isTranslating: Bool
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LanguageBadge(segment)
+                LanguageBadge(segment, lugandaMode)
                 if (!segment.isComplete) {
                     Text(
                         text = stringResource(R.string.transcription_listening),
@@ -221,13 +227,17 @@ private fun TranscriptionItem(segment: TranscriptionSegment, isTranslating: Bool
 }
 
 @Composable
-private fun LanguageBadge(segment: TranscriptionSegment) {
+private fun LanguageBadge(segment: TranscriptionSegment, lugandaMode: Boolean) {
     val detected = segment.detectedLanguage?.lowercase()
     val isChinese = detected?.startsWith("zh") == true ||
         detected?.startsWith("yue") == true ||
         (detected == null && segment.text.any { it.code in 0x4E00..0x9FFF })
+    val isLuganda = detected?.startsWith("lg") == true ||
+        detected?.startsWith("lug") == true ||
+        (detected == null && lugandaMode && !isChinese)
     val badge = when {
         isChinese -> stringResource(R.string.language_badge_zh)
+        isLuganda -> stringResource(R.string.language_badge_lg)
         detected?.startsWith("en") == true -> stringResource(R.string.language_badge_en)
         detected != null -> detected.take(2).uppercase()
         else -> stringResource(R.string.language_badge_en)
@@ -240,7 +250,13 @@ private fun LanguageBadge(segment: TranscriptionSegment) {
         color = Color.White,
         modifier = Modifier
             .clip(RoundedCornerShape(4.dp))
-            .background(if (isChinese) ModeEmeraldTint else ModeSkyBlueTint)
+            .background(
+                when {
+                    isChinese -> ModeEmeraldTint
+                    isLuganda -> ModeAmberTint
+                    else -> ModeSkyBlueTint
+                }
+            )
             .padding(horizontal = 6.dp, vertical = 2.dp)
     )
 }

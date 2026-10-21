@@ -13,6 +13,7 @@ import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.LlmModelVariant
 import com.hearopilot.app.domain.model.RecordingMode
+import com.hearopilot.app.domain.model.SttEngine
 import com.hearopilot.app.domain.repository.LlmRepository
 import com.hearopilot.app.domain.repository.SettingsRepository
 import com.hearopilot.app.domain.repository.SttRepository
@@ -175,7 +176,12 @@ class MainViewModel @Inject constructor(
                     currentOutputLanguage = session.outputLanguage
                     currentInsightStrategy = session.insightStrategy
                     currentTopic = session.topic
-                    _uiState.update { it.copy(insightStrategy = session.insightStrategy) }
+                    _uiState.update {
+                        it.copy(
+                            insightStrategy = session.insightStrategy,
+                            outputLanguage = session.outputLanguage
+                        )
+                    }
                     Log.i(TAG, "Session config: mode=$currentRecordingMode, input=$currentInputLanguage, output=$currentOutputLanguage, strategy=$currentInsightStrategy, topic=$currentTopic")
                 }
         }
@@ -222,9 +228,31 @@ class MainViewModel @Inject constructor(
             val settings = settingsRepository.getSettings().first()
             _uiState.update { it.copy(settings = settings) }
 
-            // Initialize STT
-            if (settings.sttModelPath.isNotBlank()) {
-                startSttStreamingUseCase(settings.sttModelPath)
+            // Initialize STT. Luganda mode (outputLanguage "lg") uses the Omnilingual
+            // 1600-language CTC engine; everything else uses SenseVoice. Read the session
+            // directly to avoid a race with the init-block coroutine that sets
+            // currentOutputLanguage.
+            val session = transcriptionRepository.getSession(sessionId).first()
+            val sessionOutputLanguage = session?.outputLanguage ?: currentOutputLanguage
+            val lugandaMode = sessionOutputLanguage?.startsWith("lg") == true
+
+            if (lugandaMode) {
+                val lugandaModelPath = modelDownloadManager.getLugandaModelPath()
+                if (lugandaModelPath == null) {
+                    Log.e(TAG, "Luganda model not downloaded, cannot initialize STT")
+                    _uiState.update { it.copy(error = "Luganda model not downloaded. Please download it from the New Session dialog.") }
+                } else {
+                    startSttStreamingUseCase(lugandaModelPath, SttEngine.OMNILINGUAL)
+                        .onFailure { e ->
+                            Log.e(TAG, "Omnilingual STT initialization failed", e)
+                            _uiState.update { it.copy(error = "STT init failed: ${e.message}") }
+                        }
+                        .onSuccess {
+                            Log.i(TAG, "Omnilingual STT initialized successfully")
+                        }
+                }
+            } else if (settings.sttModelPath.isNotBlank()) {
+                startSttStreamingUseCase(settings.sttModelPath, SttEngine.SENSE_VOICE)
                     .onFailure { e ->
                         Log.e(TAG, "STT initialization failed", e)
                         _uiState.update { it.copy(error = "STT init failed: ${e.message}") }
@@ -435,8 +463,17 @@ class MainViewModel @Inject constructor(
         // accumulated duration each time the user starts (or resumes) recording.
         conservativeThreadsApplied = false
 
-        // Check if STT model is downloaded before starting
-        if (!modelDownloadManager.isSttModelDownloaded()) {
+        // Check if the required STT model is downloaded before starting
+        val lugandaMode = (_uiState.value.outputLanguage ?: currentOutputLanguage)
+            ?.startsWith("lg") == true
+        if (lugandaMode && !modelDownloadManager.isLugandaModelDownloaded()) {
+            Log.e(TAG, "Luganda model not downloaded, cannot start recording")
+            _uiState.update {
+                it.copy(error = "Luganda model not downloaded. Please download it from the New Session dialog.")
+            }
+            return
+        }
+        if (!lugandaMode && !modelDownloadManager.isSttModelDownloaded()) {
             Log.e(TAG, "STT model not downloaded, cannot start recording")
             _uiState.update {
                 it.copy(error = "Speech recognition model not downloaded. Please download it from Settings.")
@@ -715,7 +752,7 @@ class MainViewModel @Inject constructor(
             try {
                 for (segment in queue) {
                     val expectedTarget = translateSegmentUseCase.resolveTargetLanguage(
-                        translateSegmentUseCase.resolveSourceLanguage(segment),
+                        translateSegmentUseCase.resolveSourceLanguage(segment, currentOutputLanguage),
                         currentOutputLanguage
                     )
                     translateSegmentUseCase(segment, currentOutputLanguage)

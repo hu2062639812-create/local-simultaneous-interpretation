@@ -74,19 +74,36 @@ fun FaceToFaceScreen(
     }
 
     // Owner's language follows the interface locale; the other side gets the
-    // complementary language. The STT / translation pipeline is zh <-> en.
+    // complementary language. The STT / translation pipeline is zh <-> en,
+    // except in Luganda mode (outputLanguage "lg") where it is zh <-> lg.
+    val lugandaMode = uiState.outputLanguage?.startsWith("lg") == true
     val ownerIsChinese = LocalConfiguration.current.locales[0]
         .language.lowercase().startsWith("zh")
-    val bottomLanguage = if (ownerIsChinese) "zh" else "en"
-    val topLanguage = if (ownerIsChinese) "en" else "zh"
+    val bottomLanguage = if (lugandaMode || ownerIsChinese) "zh" else "en"
+    val topLanguage = when {
+        lugandaMode -> "lg"
+        ownerIsChinese -> "en"
+        else -> "zh"
+    }
 
     val segments = uiState.allSegments
     val latest = segments.lastOrNull()
-    val latestSource = latest?.languageCode()
-    val zhText = segments.asReversed().firstNotNullOfOrNull { it.textFor("zh") }
-    val enText = segments.asReversed().firstNotNullOfOrNull { it.textFor("en") }
-    val bottomText = if (bottomLanguage == "zh") zhText else enText
-    val topText = if (topLanguage == "zh") zhText else enText
+    val latestSource = latest?.languageCode(lugandaMode)
+    val zhText = segments.asReversed().firstNotNullOfOrNull { it.textFor("zh", lugandaMode) }
+    val lgText = if (lugandaMode) {
+        segments.asReversed().firstNotNullOfOrNull { it.textFor("lg", true) }
+    } else null
+    val enText = segments.asReversed().firstNotNullOfOrNull { it.textFor("en", lugandaMode) }
+    val bottomText = when (bottomLanguage) {
+        "zh" -> zhText
+        "lg" -> lgText
+        else -> enText
+    }
+    val topText = when (topLanguage) {
+        "zh" -> zhText
+        "lg" -> lgText
+        else -> enText
+    }
 
     val bottomStatus = resolveFaceStatus(
         side = FaceSide.Owner,

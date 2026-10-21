@@ -50,7 +50,10 @@ data class MainUiState(
     val downloadEtaSeconds: Int = 0,
     val recordingDurationMillis: Long = 0,
     val pendingTranslations: Int = 0,
-    val pendingTranslationIds: Set<String> = emptySet()
+    val pendingTranslationIds: Set<String> = emptySet(),
+    // Interpretation direction of the current session. "lg" marks Chinese <-> Luganda
+    // mode, which drives engine selection, language badges and the face-to-face layout.
+    val outputLanguage: String? = null
 ) {
     /** A session is active from the first start until Stop, including paused time. */
     val isSessionActive: Boolean

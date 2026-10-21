@@ -1,6 +1,7 @@
 ﻿package com.hearopilot.app.data.repository
 
 import com.hearopilot.app.data.datasource.SttDataSource
+import com.hearopilot.app.domain.model.SttEngine
 import com.hearopilot.app.domain.model.TranscriptionSegment
 import com.hearopilot.app.domain.repository.SttRepository
 import kotlinx.coroutines.channels.BufferOverflow
@@ -19,8 +20,11 @@ class SttRepositoryImpl @Inject constructor(
     private val sttDataSource: SttDataSource
 ) : SttRepository {
 
-    override suspend fun initialize(modelPath: String): Result<Unit> {
-        return sttDataSource.initialize(modelPath)
+    override suspend fun initialize(
+        modelPath: String,
+        engine: SttEngine
+    ): Result<Unit> {
+        return sttDataSource.initialize(modelPath, engine)
     }
 
     override fun startStreaming(): Flow<TranscriptionSegment> {

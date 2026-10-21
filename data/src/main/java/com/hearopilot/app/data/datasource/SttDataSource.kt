@@ -1,5 +1,6 @@
 ﻿package com.hearopilot.app.data.datasource
 
+import com.hearopilot.app.domain.model.SttEngine
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -12,9 +13,10 @@ interface SttDataSource {
      * Initialize the STT engine with a model.
      *
      * @param modelPath Absolute path to the ONNX model directory
+     * @param engine Recognizer variant to load
      * @return Result indicating success or failure
      */
-    suspend fun initialize(modelPath: String): Result<Unit>
+    suspend fun initialize(modelPath: String, engine: SttEngine): Result<Unit>
 
     /**
      * Start audio recording and real-time recognition.

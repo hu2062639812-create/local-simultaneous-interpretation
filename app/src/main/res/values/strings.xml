@@ -367,6 +367,14 @@
     <string name="interpretation_direction_zh_desc">English speech is translated into Chinese; Chinese speech is kept as-is</string>
     <string name="interpretation_direction_en">Into English</string>
     <string name="interpretation_direction_en_desc">Chinese speech is translated into English; English speech is kept as-is</string>
+    <string name="interpretation_direction_lg">Chinese ⇄ Luganda (Uganda)</string>
+    <string name="interpretation_direction_lg_desc">Chinese speech is translated into Luganda; Luganda speech is translated into Chinese</string>
+    <string name="luganda_model_title">Luganda speech model required</string>
+    <string name="luganda_model_desc">Luganda needs a separate on-device speech recognition model (~365 MB). Download once and it stays fully offline. Use Wi-Fi if possible.</string>
+    <string name="luganda_model_download">Download Luganda model (365 MB)</string>
+    <string name="luganda_model_progress">Downloading… %1$d%% (progress also in the notification bar)</string>
+    <string name="luganda_model_error">Download failed: %1$s</string>
+    <string name="luganda_model_retry">Retry download</string>
     <string name="interpretation_topic_label">Session topic (optional)</string>
     <string name="interpretation_topic_hint">e.g. Product design review</string>
     <string name="interpretation_offline_note">Speech recognition, translation and the final summary run entirely on this device. Download the models once, then no network is needed.</string>
@@ -377,6 +385,7 @@
     <string name="translation_empty_source">Waiting for speech…</string>
     <string name="language_badge_zh">中</string>
     <string name="language_badge_en">EN</string>
+    <string name="language_badge_lg">LG</string>
     <string name="language_badge_other">%s</string>
     <string name="summary_finalizing">Generating summary…</string>
     <string name="summary_pending_hint">Stop the session to generate an on-device summary.</string>
@@ -503,6 +512,21 @@
     <!-- About & Legal section in Settings -->
     <string name="settings_section_about">About &amp; Legal</string>
     <string name="settings_privacy_policy">Privacy Policy</string>
+    <string name="settings_check_updates">Check for Updates</string>
+    <string name="settings_check_updates_desc">Version v%1$s · only queries GitHub for the version number</string>
+    <string name="settings_checking_updates">Checking for updates…</string>
+    <string name="settings_check_now">Check for updates now</string>
+    <string name="update_status_available">New version v%1$s available</string>
+    <string name="update_status_up_to_date">You are up to date</string>
+    <string name="update_status_no_release">No release available yet</string>
+    <string name="update_status_failed">Check failed. Please verify your connection.</string>
+    <string name="update_available_title">Update available: v%1$s</string>
+    <string name="update_current_version">Current v%1$s → Latest v%2$s</string>
+    <string name="update_whats_new">What\'s new</string>
+    <string name="update_download">Download</string>
+    <string name="update_later">Later</string>
+    <string name="update_download_hint">Opens the GitHub download page in your browser; the APK must be installed manually.</string>
+    <string name="update_open_failed">Could not open the download page</string>
     <string name="settings_open_source_licenses">Open Source Licenses</string>
     <string name="settings_open_source_licenses_desc">Third-party libraries and AI models</string>
     <string name="settings_recording_modes">Recording Modes</string>

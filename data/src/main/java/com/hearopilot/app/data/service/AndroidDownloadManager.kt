@@ -66,6 +66,7 @@ class AndroidDownloadManager @Inject constructor(
     private val scope = CoroutineScope(Dispatchers.IO)
     private var sttProgressJob: Job? = null
     private var llmProgressJob: Job? = null
+    private var lugandaProgressJob: Job? = null
 
     // Tracks a legacy DM download ID so resumeLlmDownload() can remove it before renaming
     private var llmDownloadId: Long? = null
@@ -340,9 +341,57 @@ class AndroidDownloadManager @Inject constructor(
         // State reset above triggers the service observer → service stops itself.
     }
 
+    // ── Luganda (Omnilingual) ───────────────────────────────────────────────
+
+    /**
+     * Start the optional Luganda STT model download via ModelDownloadManager.
+     *
+     * Reuses the same resumable HttpURLConnection strategy as the default STT model
+     * so interrupted downloads in low-connectivity areas resume instead of restarting.
+     */
+    fun startLugandaDownload() {
+        Log.i(TAG, "Starting Luganda STT download via ModelDownloadManager")
+        lugandaProgressJob?.cancel()
+
+        downloadStateManager.updateLugandaState(
+            DownloadState.Downloading(progress = DownloadProgress(0, 0, 0))
+        )
+
+        // Elevate to foreground so the download survives backgrounding.
+        startDownloadService()
+
+        lugandaProgressJob = scope.launch {
+            try {
+                modelDownloadManager.downloadLugandaModel().collect { p ->
+                    downloadStateManager.updateLugandaState(
+                        DownloadState.Downloading(
+                            DownloadProgress(p.bytesDownloaded, p.totalBytes, p.percentage)
+                        )
+                    )
+                }
+                downloadStateManager.updateLugandaState(DownloadState.Completed)
+            } catch (e: Exception) {
+                Log.e(TAG, "Luganda STT download failed, .partial kept for resume", e)
+                downloadStateManager.updateLugandaState(
+                    DownloadState.Error(e.message ?: "Download failed")
+                )
+            }
+            // The service observes DownloadStateManager and stops itself when no
+            // download is active; no explicit stop needed here.
+        }
+    }
+
+    /** Cancel an in-progress Luganda model download. */
+    fun cancelLugandaDownload() {
+        lugandaProgressJob?.cancel()
+        downloadStateManager.resetLugandaState()
+        // State reset above triggers the service observer → service stops itself.
+    }
+
     /** Cancel all downloads and release resources. */
     fun cleanup() {
         sttProgressJob?.cancel()
         llmProgressJob?.cancel()
+        lugandaProgressJob?.cancel()
     }
 }

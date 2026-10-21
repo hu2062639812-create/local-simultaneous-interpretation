@@ -58,18 +58,26 @@ internal fun faceStatusText(status: FaceStatus, chinese: Boolean): String = when
     FaceStatus.Idle -> if (chinese) "按住说话" else "Hold to speak"
 }
 
-internal fun TranscriptionSegment.languageCode(): String {
+internal fun TranscriptionSegment.languageCode(lugandaMode: Boolean = false): String {
     val detected = detectedLanguage?.lowercase()?.trim()
     return when {
-        detected == null -> if (text.any { it.code in 0x4E00..0x9FFF }) "zh" else "en"
+        detected == null -> when {
+            text.any { it.code in 0x4E00..0x9FFF } -> "zh"
+            lugandaMode -> "lg"
+            else -> "en"
+        }
         detected.startsWith("zh") || detected.startsWith("yue") -> "zh"
         detected.startsWith("en") -> "en"
+        detected.startsWith("lg") || detected.startsWith("lug") -> "lg"
         else -> detected.take(2)
     }
 }
 
-internal fun TranscriptionSegment.textFor(language: String): String? {
-    val source = languageCode()
+internal fun TranscriptionSegment.textFor(
+    language: String,
+    lugandaMode: Boolean = false
+): String? {
+    val source = languageCode(lugandaMode)
     return if (source == language) {
         text.takeIf { it.isNotBlank() }
     } else {
@@ -92,7 +100,11 @@ internal fun FaceLanguagePill(language: String, isDark: Boolean) {
         contentColor = if (isDark) Color.White else MaterialTheme.colorScheme.onPrimaryContainer
     ) {
         Text(
-            text = if (language == "zh") "中文" else "ENGLISH",
+            text = when (language) {
+                "zh" -> "中文"
+                "lg" -> "LUGANDA"
+                else -> "ENGLISH"
+            },
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,
             modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)

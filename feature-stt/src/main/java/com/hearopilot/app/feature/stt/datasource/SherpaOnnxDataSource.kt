@@ -14,6 +14,8 @@ import com.k2fsa.sherpa.onnx.OfflineRecognizer
 import com.k2fsa.sherpa.onnx.Vad
 import com.hearopilot.app.data.datasource.RecognitionResult
 import com.hearopilot.app.data.datasource.SttDataSource
+import com.hearopilot.app.domain.model.SttEngine
+import javax.inject.Named
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -31,19 +33,23 @@ import kotlinx.coroutines.withContext
  * is called, and releaseModel() can free the ~670 MB native heap between sessions.
  *
  * @property context Android context
- * @property recognizerProvider Factory for creating a new OfflineRecognizer instance
+ * @property senseVoiceRecognizerProvider Factory for the SenseVoice recognizer (zh/en/ja/ko/yue)
+ * @property omnilingualRecognizerProvider Factory for the Omnilingual recognizer (Luganda)
  * @property vadProvider Factory for creating a new Vad instance
  * @property audioManager System AudioManager used to activate Bluetooth SCO when available
  */
 class SherpaOnnxDataSource(
     private val context: Context,
-    private val recognizerProvider: javax.inject.Provider<OfflineRecognizer>,
+    @Named("sensevoice") private val senseVoiceRecognizerProvider: javax.inject.Provider<OfflineRecognizer>,
+    @Named("omnilingual") private val omnilingualRecognizerProvider: javax.inject.Provider<OfflineRecognizer>,
     private val vadProvider: javax.inject.Provider<Vad>,
     private val audioManager: AudioManager
 ) : SttDataSource {
 
     // Managed instances — null when model is not loaded, non-null during an active session.
     @Volatile private var activeRecognizer: OfflineRecognizer? = null
+    @Volatile private var activeRecognizerEngine: SttEngine? = null
+    @Volatile private var activeEngine: SttEngine = SttEngine.SENSE_VOICE
     @Volatile private var activeVad: Vad? = null
 
     // Serializes all recognizer.decode() calls. OfflineRecognizer is NOT thread-safe for
@@ -54,9 +60,28 @@ class SherpaOnnxDataSource(
     // forced split, partial inference (async launch), VAD segment, and post-loop flush.
     private val decodeMutex = Mutex()
 
-    // Lazily resolve the active instances; create via provider if not yet loaded.
-    private val recognizer: OfflineRecognizer
-        get() = activeRecognizer ?: recognizerProvider.get().also { activeRecognizer = it }
+    // Resolve the recognizer for the active engine, releasing the previous model when the
+    // engine changes so only one recognizer (~365-670 MB) is resident at a time.
+    private suspend fun ensureRecognizer(): OfflineRecognizer = decodeMutex.withLock {
+        val engine = activeEngine
+        val current = activeRecognizer
+        if (current != null && activeRecognizerEngine == engine) return@withLock current
+
+        current?.release()
+        activeRecognizer = null
+        activeRecognizerEngine = null
+
+        val provider = if (engine == SttEngine.OMNILINGUAL) {
+            omnilingualRecognizerProvider
+        } else {
+            senseVoiceRecognizerProvider
+        }
+        provider.get().also {
+            activeRecognizer = it
+            activeRecognizerEngine = engine
+        }
+    }
+
     private val vad: Vad
         get() = activeVad ?: vadProvider.get().also { activeVad = it }
 
@@ -192,15 +217,16 @@ class SherpaOnnxDataSource(
     private var metrics = AudioMetrics()
     private var recordingStartTimeMs = 0L
 
-    override suspend fun initialize(modelPath: String): Result<Unit> = runCatching {
+    override suspend fun initialize(modelPath: String, engine: SttEngine): Result<Unit> = runCatching {
         // Eagerly create recognizer and VAD so any model-not-found error surfaces here
-        // rather than mid-recording. If instances are already loaded (re-use without release)
-        // the lazy properties return the existing ones.
-        // Must run on IO: recognizerProvider.get() loads ~670 MB ONNX model from disk and
-        // would block the main thread otherwise (Choreographer: Skipped 228 frames).
+        // rather than mid-recording. If instances are already loaded for the requested
+        // engine (re-use without release) ensureRecognizer() returns the existing one.
+        // Must run on IO: loading the ONNX model from disk blocks for several seconds and
+        // would stall the main thread otherwise.
         withContext(Dispatchers.IO) {
-            val r = recognizer  // triggers recognizerProvider.get() if not yet loaded
-            val v = vad         // triggers vadProvider.get() if not yet loaded
+            activeEngine = engine
+            ensureRecognizer()
+            val v = vad
             // Drain any leftover segments from the previous session before resetting the
             // RNN hidden state. vad.reset() only resets the model state, NOT the segments
             // queue — unconsumed segments from session N would cause isSpeechDetected() to
@@ -226,17 +252,16 @@ class SherpaOnnxDataSource(
         // MainViewModel.initialize() is idempotent (runs once per ViewModel lifetime), so
         // startRecording() is the only guaranteed per-session entry point.
         //
-        // recognizer: accesses the lazy property which calls recognizerProvider.get() if
-        // activeRecognizer is null (e.g. after stopStreaming() → releaseModel()). Without
-        // this, all four decode sites use `activeRecognizer ?: return@withLock null` and
-        // silently produce no output — VAD detects speech but decode always returns null.
-        // Must run on IO: recognizerProvider.get() loads ~670 MB ONNX model from disk.
+        // recognizer: ensureRecognizer() loads the model for the active engine if it is
+        // not resident (e.g. after stopStreaming() → releaseModel()). Without this, all
+        // four decode sites use `activeRecognizer ?: return@withLock null` and silently
+        // produce no output. Must run on IO: loading the model blocks for several seconds.
         //
         // vad: drain any leftover segments from the previous session before resetting the
         // RNN hidden state. vad.reset() only resets the model state, NOT the segments
         // queue — unconsumed segments cause isSpeechDetected() to malfunction silently.
         withContext(Dispatchers.IO) {
-            recognizer // triggers recognizerProvider.get() if activeRecognizer is null
+            ensureRecognizer()
             val v = vad
             while (!v.empty()) {
                 v.pop()
@@ -627,6 +652,7 @@ class SherpaOnnxDataSource(
         decodeMutex.withLock {
             activeRecognizer?.release()
             activeRecognizer = null
+            activeRecognizerEngine = null
         }
         Log.i(TAG, "STT model released from native heap")
     }

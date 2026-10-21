@@ -170,7 +170,10 @@ fun SessionsScreen(
                         onNavigateToRecording(sessionId)
                     }
                 },
-                settings = uiState.settings
+                settings = uiState.settings,
+                isLugandaModelDownloaded = uiState.isLugandaModelDownloaded,
+                lugandaDownloadState = uiState.lugandaDownloadState,
+                onDownloadLugandaModel = { viewModel.downloadLugandaModel() }
             )
         }
     }

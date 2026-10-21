@@ -41,6 +41,7 @@ object SupportedLanguages {
         SupportedLanguage("el", "Greek",       "Ελληνικά"),
         SupportedLanguage("hu", "Hungarian",   "Magyar"),
         SupportedLanguage("it", "Italian",     "Italiano"),
+        SupportedLanguage("lg", "Luganda",     "Luganda"),
         SupportedLanguage("lv", "Latvian",     "Latviešu"),
         SupportedLanguage("lt", "Lithuanian",  "Lietuvių"),
         SupportedLanguage("mt", "Maltese",     "Malti"),

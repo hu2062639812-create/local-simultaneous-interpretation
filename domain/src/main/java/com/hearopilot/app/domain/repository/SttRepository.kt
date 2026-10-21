@@ -1,5 +1,6 @@
 ﻿package com.hearopilot.app.domain.repository
 
+import com.hearopilot.app.domain.model.SttEngine
 import com.hearopilot.app.domain.model.TranscriptionSegment
 import kotlinx.coroutines.flow.Flow
 
@@ -13,9 +14,10 @@ interface SttRepository {
      * Initialize the STT engine with a model.
      *
      * @param modelPath Absolute path to the ONNX model directory
+     * @param engine Which recognizer to load; switching engines releases the previous model
      * @return Result indicating success or failure
      */
-    suspend fun initialize(modelPath: String): Result<Unit>
+    suspend fun initialize(modelPath: String, engine: SttEngine = SttEngine.SENSE_VOICE): Result<Unit>
 
     /**
      * Start streaming audio recording and transcription.

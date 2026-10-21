@@ -21,6 +21,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.hearopilot.app.ui.R
 import com.hearopilot.app.domain.model.AppSettings
+import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.ui.icons.AppIcons
@@ -31,15 +32,19 @@ import com.hearopilot.app.ui.ui.theme.*
  *
  * Every session is created as [RecordingMode.REAL_TIME_TRANSLATION] with an
  * end-of-session summary. The only user choices are the translation direction
- * (auto / into Chinese / into English) and an optional session topic.
+ * (auto / into Chinese / into English / Chinese-Luganda) and an optional session topic.
  */
 @Composable
 fun NewSessionDialog(
     onDismiss: () -> Unit,
     onConfirm: (String?, RecordingMode, String?, InsightStrategy, String?) -> Unit,
-    settings: AppSettings = AppSettings()
+    settings: AppSettings = AppSettings(),
+    isLugandaModelDownloaded: Boolean = false,
+    lugandaDownloadState: DownloadState = DownloadState.Idle,
+    onDownloadLugandaModel: () -> Unit = {}
 ) {
-    // null = auto (bidirectional), "zh" = force Chinese output, "en" = force English output.
+    // null = auto (bidirectional), "zh" = force Chinese output, "en" = force English output,
+    // "lg" = Chinese <-> Luganda (Uganda).
     var direction by remember { mutableStateOf<String?>(null) }
     var sessionTopic by remember { mutableStateOf("") }
 
@@ -125,6 +130,19 @@ fun NewSessionDialog(
                             isSelected = direction == "en",
                             onClick = { direction = "en" }
                         )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_lg),
+                            description = stringResource(R.string.interpretation_direction_lg_desc),
+                            isSelected = direction == "lg",
+                            onClick = { direction = "lg" }
+                        )
+                    }
+
+                    if (direction == "lg" && !isLugandaModelDownloaded) {
+                        LugandaDownloadCard(
+                            downloadState = lugandaDownloadState,
+                            onDownload = onDownloadLugandaModel
+                        )
                     }
 
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -183,8 +201,70 @@ fun NewSessionDialog(
                                 nameAndTopic
                             )
                         },
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !(direction == "lg" && !isLugandaModelDownloaded)
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LugandaDownloadCard(
+    downloadState: DownloadState,
+    onDownload: () -> Unit
+) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = ModeAmberTint.copy(alpha = 0.08f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            Text(
+                text = stringResource(R.string.luganda_model_title),
+                style = MaterialTheme.typography.bodyMedium,
+                fontWeight = FontWeight.SemiBold,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.luganda_model_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            when (val state = downloadState) {
+                is DownloadState.Downloading -> {
+                    LinearProgressIndicator(
+                        progress = { state.progress.percentage / 100f },
                         modifier = Modifier.fillMaxWidth()
                     )
+                    Text(
+                        text = stringResource(
+                            R.string.luganda_model_progress, state.progress.percentage
+                        ),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                is DownloadState.Error -> {
+                    Text(
+                        text = stringResource(R.string.luganda_model_error, state.message),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.error
+                    )
+                    OutlinedButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.luganda_model_retry))
+                    }
+                }
+                else -> {
+                    OutlinedButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
+                        Text(stringResource(R.string.luganda_model_download))
+                    }
                 }
             }
         }

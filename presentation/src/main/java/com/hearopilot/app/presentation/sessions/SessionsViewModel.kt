@@ -2,6 +2,10 @@
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.hearopilot.app.data.datasource.ModelDownloadManager
+import com.hearopilot.app.data.service.AndroidDownloadManager
+import com.hearopilot.app.data.service.DownloadStateManager
+import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.repository.SettingsRepository
@@ -33,7 +37,10 @@ class SessionsViewModel @Inject constructor(
     private val createSessionUseCase: CreateSessionUseCase,
     private val deleteSessionUseCase: DeleteSessionUseCase,
     private val settingsRepository: SettingsRepository,
-    private val getTotalDataSizeUseCase: GetTotalDataSizeUseCase
+    private val getTotalDataSizeUseCase: GetTotalDataSizeUseCase,
+    private val modelDownloadManager: ModelDownloadManager,
+    private val androidDownloadManager: AndroidDownloadManager,
+    private val downloadStateManager: DownloadStateManager
 ) : ViewModel() {
 
     private val _uiState = MutableStateFlow(SessionsUiState())
@@ -49,6 +56,20 @@ class SessionsViewModel @Inject constructor(
         viewModelScope.launch {
             getTotalDataSizeUseCase().collect { bytes ->
                 _uiState.update { it.copy(totalDataSizeBytes = bytes) }
+            }
+        }
+        viewModelScope.launch {
+            _uiState.update {
+                it.copy(isLugandaModelDownloaded = modelDownloadManager.isLugandaModelDownloaded())
+            }
+            downloadStateManager.lugandaDownloadState.collect { state ->
+                _uiState.update {
+                    it.copy(
+                        lugandaDownloadState = state,
+                        isLugandaModelDownloaded = if (state is DownloadState.Completed) true
+                            else it.isLugandaModelDownloaded
+                    )
+                }
             }
         }
     }
@@ -85,7 +106,19 @@ class SessionsViewModel @Inject constructor(
      * Show the new session dialog.
      */
     fun showNewSessionDialog() {
-        _uiState.update { it.copy(showNewSessionDialog = true) }
+        _uiState.update {
+            it.copy(
+                showNewSessionDialog = true,
+                isLugandaModelDownloaded = modelDownloadManager.isLugandaModelDownloaded()
+            )
+        }
+    }
+
+    /**
+     * Start downloading the optional Luganda ASR model (foreground service).
+     */
+    fun downloadLugandaModel() {
+        androidDownloadManager.startLugandaDownload()
     }
 
     /**

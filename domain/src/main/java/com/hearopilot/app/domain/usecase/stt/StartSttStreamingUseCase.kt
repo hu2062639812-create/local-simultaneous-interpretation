@@ -1,5 +1,6 @@
 ﻿package com.hearopilot.app.domain.usecase.stt
 
+import com.hearopilot.app.domain.model.SttEngine
 import com.hearopilot.app.domain.repository.SttRepository
 
 /**
@@ -14,9 +15,13 @@ class StartSttStreamingUseCase(
      * Initialize STT with the specified model.
      *
      * @param modelPath Absolute path to the ONNX model directory
+     * @param engine Recognizer variant to load
      * @return Result indicating success or failure
      */
-    suspend operator fun invoke(modelPath: String): Result<Unit> {
-        return sttRepository.initialize(modelPath)
+    suspend operator fun invoke(
+        modelPath: String,
+        engine: SttEngine = SttEngine.SENSE_VOICE
+    ): Result<Unit> {
+        return sttRepository.initialize(modelPath, engine)
     }
 }

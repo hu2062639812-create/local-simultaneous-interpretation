@@ -272,6 +272,21 @@
 
     <string name="settings_section_about">关于与法律信息</string>
     <string name="settings_privacy_policy">隐私政策</string>
+    <string name="settings_check_updates">检查更新</string>
+    <string name="settings_check_updates_desc">当前版本 v%1$s · 联网仅查询 GitHub 版本号</string>
+    <string name="settings_checking_updates">正在检查更新…</string>
+    <string name="settings_check_now">立即检查更新</string>
+    <string name="update_status_available">发现新版本 v%1$s</string>
+    <string name="update_status_up_to_date">已是最新版本</string>
+    <string name="update_status_no_release">暂未发布可更新版本</string>
+    <string name="update_status_failed">检查失败，请检查网络后重试</string>
+    <string name="update_available_title">发现新版本 v%1$s</string>
+    <string name="update_current_version">当前 v%1$s → 最新 v%2$s</string>
+    <string name="update_whats_new">更新内容</string>
+    <string name="update_download">前往下载</string>
+    <string name="update_later">稍后</string>
+    <string name="update_download_hint">将在浏览器中打开 GitHub 下载页面，安装包需要手动安装。</string>
+    <string name="update_open_failed">无法打开下载页面</string>
     <string name="settings_open_source_licenses">开源许可证</string>
     <string name="settings_open_source_licenses_desc">第三方库与 AI 模型</string>
     <string name="licenses_title">开源许可证</string>
@@ -290,6 +305,14 @@
     <string name="interpretation_direction_zh_desc">英文语音译成中文；中文语音保持原样</string>
     <string name="interpretation_direction_en">译成英文</string>
     <string name="interpretation_direction_en_desc">中文语音译成英文；英文语音保持原样</string>
+    <string name="interpretation_direction_lg">中文 ⇄ Luganda（乌干达语）</string>
+    <string name="interpretation_direction_lg_desc">中文语音译成 Luganda；Luganda 语音译成中文</string>
+    <string name="luganda_model_title">需要 Luganda 语音识别模型</string>
+    <string name="luganda_model_desc">Luganda 需要单独的语音识别模型（约 365 MB）。下载一次后全程离线使用，建议在 Wi-Fi 下完成。</string>
+    <string name="luganda_model_download">下载 Luganda 模型（365 MB）</string>
+    <string name="luganda_model_progress">正在下载… %1$d%%（进度也可在通知栏查看）</string>
+    <string name="luganda_model_error">下载失败：%1$s</string>
+    <string name="luganda_model_retry">重试下载</string>
     <string name="interpretation_topic_label">会话主题（可选）</string>
     <string name="interpretation_topic_hint">例如：产品设计评审</string>
     <string name="interpretation_offline_note">语音识别、翻译和最终的总结全部在本机运行。模型只需下载一次，之后无需联网。</string>
@@ -300,6 +323,7 @@
     <string name="translation_empty_source">等待说话…</string>
     <string name="language_badge_zh">中</string>
     <string name="language_badge_en">EN</string>
+    <string name="language_badge_lg">LG</string>
     <string name="language_badge_other">%s</string>
     <string name="summary_finalizing">正在生成总结…</string>
     <string name="summary_pending_hint">停止录音后将在本机生成总结。</string>

@@ -50,6 +50,9 @@ import com.hearopilot.app.domain.model.OnboardingStep
 import com.hearopilot.app.presentation.settings.SettingsViewModel
 import com.hearopilot.app.ui.screens.*
 import com.hearopilot.app.presentation.setup.SetupViewModel
+import com.hearopilot.app.ui.update.UpdateAvailableDialog
+import com.hearopilot.app.ui.update.UpdateViewModel
+import com.hearopilot.app.ui.update.openReleasePage
 import dagger.hilt.android.AndroidEntryPoint
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.hilt.navigation.compose.hiltViewModel
@@ -129,6 +132,8 @@ class MainActivity : ComponentActivity() {
 fun LibellulaApp() {
     val navController = rememberNavController()
     val setupViewModel: SetupViewModel = hiltViewModel()
+    val updateViewModel: UpdateViewModel = hiltViewModel()
+    val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
 
     val isOnboardingComplete by setupViewModel.isOnboardingComplete.collectAsStateWithLifecycle()
@@ -146,6 +151,11 @@ fun LibellulaApp() {
                 popUpTo("onboarding") { inclusive = true }
             }
         }
+    }
+
+    // Silent, throttled check for a newer GitHub release once setup is done.
+    LaunchedEffect(isOnboardingComplete) {
+        if (isOnboardingComplete) updateViewModel.checkForUpdates(manual = false)
     }
 
     NavHost(
@@ -323,7 +333,8 @@ fun LibellulaApp() {
                 },
                 onNavigateToLicenses = {
                     navController.navigate("licenses")
-                }
+                },
+                updateViewModel = updateViewModel
             )
         }
 
@@ -332,5 +343,18 @@ fun LibellulaApp() {
                 onNavigateBack = { if (navController.previousBackStackEntry != null) navController.popBackStack() }
             )
         }
+    }
+
+    val release = updateState.release
+    if (updateState.dialogVisible && release != null) {
+        UpdateAvailableDialog(
+            currentVersion = updateState.currentVersion,
+            release = release,
+            onDismiss = updateViewModel::dismissDialog,
+            onDownload = {
+                updateViewModel.dismissDialog()
+                openReleasePage(context, release.downloadUrl ?: release.pageUrl)
+            }
+        )
     }
 }

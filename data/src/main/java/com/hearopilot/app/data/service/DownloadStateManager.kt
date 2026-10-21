@@ -28,6 +28,9 @@ class DownloadStateManager @Inject constructor() {
     private val _llmDownloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val llmDownloadState: StateFlow<DownloadState> = _llmDownloadState.asStateFlow()
 
+    private val _lugandaDownloadState = MutableStateFlow<DownloadState>(DownloadState.Idle)
+    val lugandaDownloadState: StateFlow<DownloadState> = _lugandaDownloadState.asStateFlow()
+
     /**
      * Update STT download state.
      * Called by DownloadService during STT download.
@@ -45,6 +48,13 @@ class DownloadStateManager @Inject constructor() {
     }
 
     /**
+     * Update Luganda model download state.
+     */
+    fun updateLugandaState(state: DownloadState) {
+        _lugandaDownloadState.value = state
+    }
+
+    /**
      * Reset STT state to Idle.
      */
     fun resetSttState() {
@@ -59,10 +69,18 @@ class DownloadStateManager @Inject constructor() {
     }
 
     /**
+     * Reset Luganda state to Idle.
+     */
+    fun resetLugandaState() {
+        _lugandaDownloadState.value = DownloadState.Idle
+    }
+
+    /**
      * Reset all states to Idle.
      */
     fun resetAll() {
         _sttDownloadState.value = DownloadState.Idle
         _llmDownloadState.value = DownloadState.Idle
+        _lugandaDownloadState.value = DownloadState.Idle
     }
 }

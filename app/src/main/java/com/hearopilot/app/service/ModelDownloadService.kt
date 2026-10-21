@@ -85,13 +85,17 @@ class ModelDownloadService : Service() {
         observerJob = serviceScope.launch {
             combine(
                 downloadStateManager.sttDownloadState,
-                downloadStateManager.llmDownloadState
-            ) { sttState, llmState -> Pair(sttState, llmState) }
-                .collect { (sttState, llmState) ->
+                downloadStateManager.llmDownloadState,
+                downloadStateManager.lugandaDownloadState
+            ) { sttState, llmState, lugandaState ->
+                Triple(sttState, llmState, lugandaState)
+            }
+                .collect { (sttState, llmState, lugandaState) ->
                     val sttActive = sttState is DownloadState.Downloading
                     val llmActive = llmState is DownloadState.Downloading
+                    val lugandaActive = lugandaState is DownloadState.Downloading
 
-                    if (!sttActive && !llmActive) {
+                    if (!sttActive && !llmActive && !lugandaActive) {
                         Log.d(TAG, "No active downloads — stopping service")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
@@ -102,6 +106,7 @@ class ModelDownloadService : Service() {
                     val percentage = when {
                         sttActive -> (sttState as DownloadState.Downloading).progress.percentage
                         llmActive -> (llmState as DownloadState.Downloading).progress.percentage
+                        lugandaActive -> (lugandaState as DownloadState.Downloading).progress.percentage
                         else -> 0
                     }
 

@@ -45,7 +45,7 @@ class TranslateSegmentUseCase(
         val sourceText = segment.text.trim()
         if (sourceText.isBlank()) return Result.success(null)
 
-        val sourceLanguage = resolveSourceLanguage(segment)
+        val sourceLanguage = resolveSourceLanguage(segment, outputLanguage)
         val targetLanguage = resolveTargetLanguage(sourceLanguage, outputLanguage)
             ?: return Result.success(null)
 
@@ -83,13 +83,27 @@ class TranslateSegmentUseCase(
         return Result.success(Translation(translated, targetLanguage))
     }
 
-    fun resolveSourceLanguage(segment: TranscriptionSegment): String {
+    fun resolveSourceLanguage(
+        segment: TranscriptionSegment,
+        outputLanguage: String? = null
+    ): String {
+        val lugandaMode = outputLanguage
+            ?.lowercase()
+            ?.trim()
+            ?.startsWith("lg") == true
         val detected = segment.detectedLanguage
             ?.lowercase()
             ?.trim()
             ?.takeIf { it.isNotBlank() }
         return when {
-            detected == null -> if (CJK.containsMatchIn(segment.text)) "zh" else "en"
+            detected != null && (detected.startsWith("lg") || detected.startsWith("lug")) -> "lg"
+            detected == null -> when {
+                // Omnilingual (Luganda engine) reports no language per utterance, so
+                // fall back to script detection inside a Chinese <-> Luganda session.
+                lugandaMode && !CJK.containsMatchIn(segment.text) -> "lg"
+                CJK.containsMatchIn(segment.text) -> "zh"
+                else -> "en"
+            }
             detected.startsWith("zh") || detected.startsWith("yue") -> "zh"
             detected.startsWith("en") -> "en"
             else -> detected.take(2)
@@ -105,6 +119,13 @@ class TranslateSegmentUseCase(
                 if (sourceLanguage == "zh") null else "zh"
             preference.startsWith("en") ->
                 if (sourceLanguage == "en") null else "en"
+            preference.startsWith("lg") -> when (sourceLanguage) {
+                "zh" -> "lg"
+                "lg" -> "zh"
+                // Unexpected third language (e.g. English) in a Luganda session:
+                // translate into Chinese so the Chinese speaker can follow.
+                else -> "zh"
+            }
             else ->
                 if (sourceLanguage == "zh") "en" else "zh"
         }
@@ -115,6 +136,8 @@ class TranslateSegmentUseCase(
         code.startsWith("en") -> "English"
         code.startsWith("ja") -> "Japanese"
         code.startsWith("ko") -> "Korean"
+        code.startsWith("lg") ->
+            "Luganda (Oluganda, a Bantu language spoken in Uganda)"
         else -> code
     }
 

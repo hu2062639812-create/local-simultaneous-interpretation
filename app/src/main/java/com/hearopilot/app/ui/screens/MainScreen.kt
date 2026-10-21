@@ -669,6 +669,7 @@ fun MainScreen(
                             isRecording = uiState.isRecording,
                             isPaused = uiState.isPaused,
                             pendingTranslationIds = uiState.pendingTranslationIds,
+                            lugandaMode = uiState.outputLanguage?.startsWith("lg") == true,
                             modifier = Modifier.fillMaxSize()
                         )
                         1 -> {
