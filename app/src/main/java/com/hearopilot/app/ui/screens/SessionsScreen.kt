@@ -50,6 +50,7 @@ fun SessionsScreen(
     onNavigateToSessionDetails: (String) -> Unit = {},
     onNavigateToRecording: (String) -> Unit = {},
     onNavigateToSearch: () -> Unit = {},
+    onNavigateToPhrasebook: () -> Unit = {},
     viewModel: SessionsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -76,6 +77,12 @@ fun SessionsScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onNavigateToPhrasebook) {
+                            Icon(
+                                AppIcons.Phrasebook,
+                                contentDescription = stringResource(R.string.phrasebook_title)
+                            )
+                        }
                         IconButton(onClick = onNavigateToSearch) {
                             Icon(AppIcons.Search, contentDescription = stringResource(R.string.search_hint))
                         }

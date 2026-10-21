@@ -133,6 +133,10 @@ fun SettingsScreen(
                     currentMode = settings.themeMode,
                     onModeChange = { viewModel.updateThemeMode(it) }
                 )
+                FontScaleSetting(
+                    currentScale = settings.fontScale,
+                    onScaleChange = { viewModel.updateFontScale(it) }
+                )
                 InterfaceLanguageSetting(
                     currentLanguage = appLanguage,
                     onLanguageChange = { language ->
@@ -1393,6 +1397,70 @@ private fun Context.findActivity(): Activity? {
         context = context.baseContext
     }
     return null
+}
+
+/**
+ * App-wide font scale setting.
+ *
+ * The selected multiplier is applied on top of the system font scale, so the
+ * device accessibility setting keeps working.
+ *
+ * @param currentScale Current font scale multiplier
+ * @param onScaleChange Callback when the multiplier changes
+ */
+@Composable
+private fun FontScaleSetting(
+    currentScale: Float,
+    onScaleChange: (Float) -> Unit
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text(
+            text = stringResource(R.string.settings_font_scale_title),
+            style = MaterialTheme.typography.bodyLarge,
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.onSurface
+        )
+        Text(
+            text = stringResource(R.string.settings_font_scale_desc),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant
+        )
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            listOf(
+                1.0F to stringResource(R.string.font_scale_standard),
+                1.15F to stringResource(R.string.font_scale_large),
+                1.3F to stringResource(R.string.font_scale_xlarge),
+                1.5F to stringResource(R.string.font_scale_huge)
+            ).forEach { (scale, label) ->
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .selectable(
+                            selected = currentScale == scale,
+                            onClick = { onScaleChange(scale) },
+                            role = Role.RadioButton
+                        )
+                        .padding(vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    RadioButton(
+                        selected = currentScale == scale,
+                        onClick = null
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = label,
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                }
+            }
+        }
+    }
 }
 
 /**

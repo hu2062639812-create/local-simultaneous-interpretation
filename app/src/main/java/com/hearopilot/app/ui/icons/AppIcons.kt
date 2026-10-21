@@ -29,6 +29,13 @@ object AppIcons {
     val Stop: ImageVector get() = Icons.Outlined.Stop
     val Pause: ImageVector get() = Icons.Outlined.Pause
     val Play: ImageVector get() = Icons.Outlined.PlayArrow
+    val HoldToTalk: ImageVector get() = Icons.Outlined.RecordVoiceOver
+    val Headphones: ImageVector get() = Icons.Outlined.Headphones
+
+    // Face-to-face & offline tools
+    val FaceToFace: ImageVector get() = Icons.Outlined.QuestionAnswer
+    val Phrasebook: ImageVector get() = Icons.Outlined.MenuBook
+    val Flip: ImageVector get() = Icons.Outlined.ScreenRotation
 
     // AI & Features
     val AutoAwesome: ImageVector get() = Icons.Outlined.AutoAwesome

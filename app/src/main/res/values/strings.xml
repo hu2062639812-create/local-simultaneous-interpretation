@@ -316,6 +316,14 @@
     <string name="theme_light_desc">App will always use light theme</string>
     <string name="theme_dark_desc">App will always use dark theme</string>
 
+    <!-- Font Scale Settings -->
+    <string name="settings_font_scale_title">Text size</string>
+    <string name="settings_font_scale_desc">Enlarge text in the app for reading at a distance or in bright light.</string>
+    <string name="font_scale_standard">Standard · 100%</string>
+    <string name="font_scale_large">Large · 115%</string>
+    <string name="font_scale_xlarge">Extra large · 130%</string>
+    <string name="font_scale_huge">Huge · 150%</string>
+
     <!-- Interface Language Settings -->
     <string name="settings_language_title">Interface Language</string>
     <string name="settings_language_desc">Choose the language used by the app</string>
@@ -532,4 +540,37 @@
     <string name="settings_llm_advanced_section_desc">Experimental models for advanced users. Performance may vary from standard models.</string>
     <string name="settings_llm_model_variant_qwen35_name">Qwen 3.5 0.8B (Q8)</string>
     <string name="settings_llm_model_variant_qwen35_desc">Recommended · strong Chinese and English · ~870 MB</string>
+
+    <!-- Face-to-face mode and push-to-talk -->
+    <string name="face_to_face_open">Face to face</string>
+    <string name="face_to_face_exit">Exit face-to-face</string>
+    <string name="face_to_face_phrases">Phrasebook</string>
+    <string name="face_to_face_auto">Auto</string>
+    <string name="face_to_face_no_llm">Translation model not ready — showing original text only.</string>
+    <string name="push_to_talk_toggle">Hold to talk</string>
+    <string name="push_to_talk_hint">Press and hold the mic to speak. Release to translate.</string>
+    <string name="push_to_talk_active_hint">Hold to talk is on — press and hold the mic.</string>
+    <string name="push_to_talk_hold">Hold the mic to talk</string>
+    <string name="push_to_talk_release">Release to finish</string>
+
+    <!-- Offline phrasebook -->
+    <string name="phrasebook_title">Phrasebook</string>
+    <string name="phrasebook_subtitle">Offline · works without a network</string>
+    <string name="phrasebook_search_hint">Search Chinese or English</string>
+    <string name="phrasebook_all">All</string>
+    <string name="phrasebook_empty">No matching phrases</string>
+    <string name="phrasebook_show_hint">Tap a phrase to show it full screen.</string>
+    <string name="phrasebook_flipped_hint">Turn the screen toward the other person.</string>
+    <string name="phrasebook_copy">Copy</string>
+    <string name="phrasebook_copied">Copied</string>
+    <string name="phrasebook_flip">Flip</string>
+    <string name="phrasebook_close">Close</string>
+    <string name="phrase_category_greetings">Greetings</string>
+    <string name="phrase_category_transport">Transport</string>
+    <string name="phrase_category_accommodation">Hotel</string>
+    <string name="phrase_category_food">Food</string>
+    <string name="phrase_category_shopping">Shopping</string>
+    <string name="phrase_category_medical">Medical</string>
+    <string name="phrase_category_emergency">Emergency</string>
+    <string name="phrase_category_work">Work</string>
 </resources>

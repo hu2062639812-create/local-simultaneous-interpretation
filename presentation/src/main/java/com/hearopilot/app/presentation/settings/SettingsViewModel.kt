@@ -224,6 +224,20 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
+     * Update the app-wide font scale multiplier.
+     *
+     * @param fontScale One of [AppSettings.FONT_SCALE_OPTIONS]; other values fall back to 1.0
+     */
+    fun updateFontScale(fontScale: Float) {
+        viewModelScope.launch {
+            val updatedSettings = _settings.value.copy(
+                fontScale = fontScale.takeIf { it in AppSettings.FONT_SCALE_OPTIONS } ?: 1.0F
+            )
+            settingsRepository.updateSettings(updatedSettings)
+        }
+    }
+
+    /**
      * Update the long recording insight interval.
      *
      * @param minutes New interval in minutes (must be 5, 10, or 15)

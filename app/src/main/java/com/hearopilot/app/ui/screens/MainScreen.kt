@@ -8,11 +8,17 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.*
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
+import androidx.compose.foundation.gestures.waitForUpOrCancellation
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import com.hearopilot.app.ui.icons.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -20,13 +26,20 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.core.content.ContextCompat
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -41,7 +54,7 @@ import java.util.concurrent.TimeUnit
  * Formats milliseconds to mm:ss or h:mm:ss format for recording timer display.
  * Shows hours only when recording exceeds 60 minutes.
  */
-private fun formatRecordingTime(millis: Long): String {
+internal fun formatRecordingTime(millis: Long): String {
     val hours = TimeUnit.MILLISECONDS.toHours(millis)
     val minutes = TimeUnit.MILLISECONDS.toMinutes(millis) % 60
     val seconds = TimeUnit.MILLISECONDS.toSeconds(millis) % 60
@@ -69,17 +82,20 @@ private fun formatRecordingTime(millis: Long): String {
 fun MainScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToLlmDownload: () -> Unit = {},
+    onNavigateToPhrasebook: () -> Unit = {},
     viewModel: MainViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val llmDownloadState by viewModel.llmDownloadState.collectAsStateWithLifecycle()
     var selectedTab by remember { mutableIntStateOf(0) }
+    var showFaceToFace by rememberSaveable { mutableStateOf(false) }
+    var pushToTalkMode by rememberSaveable { mutableStateOf(false) }
     val context = LocalContext.current
 
     // Intercept hardware back button while recording is active.
     var showStopConfirmDialog by remember { mutableStateOf(false) }
     // Block back navigation while recording or while the session is being finalized.
-    BackHandler(enabled = uiState.isSessionActive || uiState.isFinalizingSession) {
+    BackHandler(enabled = (uiState.isSessionActive || uiState.isFinalizingSession) && !showFaceToFace) {
         if (!uiState.isFinalizingSession) {
             showStopConfirmDialog = true
         }
@@ -225,6 +241,12 @@ fun MainScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = onNavigateToPhrasebook) {
+                            Icon(
+                                imageVector = AppIcons.Phrasebook,
+                                contentDescription = stringResource(R.string.phrasebook_title)
+                            )
+                        }
                         // Download progress indicator shown in top bar during model download
                         if (uiState.isDownloadingModel) {
                             Row(
@@ -329,7 +351,18 @@ fun MainScreen(
                     )
                     val fabEnabled = !uiState.isFinalizingSession &&
                         (uiState.isSessionActive || canRecord)
+                    val pttDescription = stringResource(
+                        if (uiState.isRecording) R.string.push_to_talk_release
+                        else R.string.push_to_talk_hold
+                    )
                     val fabGradient = when {
+                        pushToTalkMode && uiState.isRecording -> Brush.linearGradient(
+                            colors = listOf(
+                                MaterialTheme.colorScheme.error,
+                                MaterialTheme.colorScheme.error
+                            )
+                        )
+                        pushToTalkMode -> PrimaryGradient
                         uiState.isPaused -> ModeTranslationGradient
                         uiState.isRecording -> Brush.linearGradient(
                             colors = listOf(
@@ -351,37 +384,74 @@ fun MainScreen(
                                     else -> 0.4f
                                 }
                             )
-                            .background(brush = fabGradient, shape = CircleShape),
+                            .background(brush = fabGradient, shape = CircleShape)
+                            .then(
+                                if (pushToTalkMode) {
+                                    Modifier
+                                        .pointerInput(fabEnabled) {
+                                            if (!fabEnabled) return@pointerInput
+                                            awaitEachGesture {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                down.consume()
+                                                haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                                viewModel.startPushToTalk()
+                                                try {
+                                                    waitForUpOrCancellation()
+                                                } finally {
+                                                    viewModel.stopPushToTalk()
+                                                    haptic.performHapticFeedback(
+                                                        HapticFeedbackType.TextHandleMove
+                                                    )
+                                                }
+                                            }
+                                        }
+                                        .semantics {
+                                            contentDescription = pttDescription
+                                            role = Role.Button
+                                        }
+                                } else {
+                                    Modifier
+                                }
+                            ),
                         contentAlignment = Alignment.Center
                     ) {
-                        IconButton(
-                            onClick = {
-                                if (!uiState.isFinalizingSession) {
-                                    haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                                    when {
-                                        uiState.isPaused -> viewModel.startStreaming()
-                                        uiState.isRecording -> viewModel.pauseStreaming()
-                                        else -> viewModel.startStreaming()
-                                    }
-                                }
-                            },
-                            enabled = fabEnabled,
-                            modifier = Modifier.size(64.dp)
-                        ) {
+                        if (pushToTalkMode) {
                             Icon(
-                                imageVector = when {
-                                    uiState.isPaused -> AppIcons.Play
-                                    uiState.isRecording -> AppIcons.Pause
-                                    else -> AppIcons.Mic
-                                },
-                                contentDescription = when {
-                                    uiState.isPaused -> stringResource(R.string.resume)
-                                    uiState.isRecording -> stringResource(R.string.pause)
-                                    else -> stringResource(R.string.record)
-                                },
+                                imageVector = AppIcons.Mic,
+                                contentDescription = pttDescription,
                                 tint = Color.White,
                                 modifier = Modifier.size(28.dp)
                             )
+                        } else {
+                            IconButton(
+                                onClick = {
+                                    if (!uiState.isFinalizingSession) {
+                                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
+                                        when {
+                                            uiState.isPaused -> viewModel.startStreaming()
+                                            uiState.isRecording -> viewModel.pauseStreaming()
+                                            else -> viewModel.startStreaming()
+                                        }
+                                    }
+                                },
+                                enabled = fabEnabled,
+                                modifier = Modifier.size(64.dp)
+                            ) {
+                                Icon(
+                                    imageVector = when {
+                                        uiState.isPaused -> AppIcons.Play
+                                        uiState.isRecording -> AppIcons.Pause
+                                        else -> AppIcons.Mic
+                                    },
+                                    contentDescription = when {
+                                        uiState.isPaused -> stringResource(R.string.resume)
+                                        uiState.isRecording -> stringResource(R.string.pause)
+                                        else -> stringResource(R.string.record)
+                                    },
+                                    tint = Color.White,
+                                    modifier = Modifier.size(28.dp)
+                                )
+                            }
                         }
                     }
 
@@ -456,6 +526,70 @@ fun MainScreen(
                             Icon(AppIcons.Close, stringResource(R.string.dismiss), tint = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
                     }
+                }
+            }
+
+            // Quick controls for the offline face-to-face scenario.
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState())
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                AssistChip(
+                    onClick = {
+                        // Hand the mic to the two hold-to-talk buttons in the
+                        // face-to-face panel instead of leaving auto capture on.
+                        if (uiState.isRecording) viewModel.pauseStreaming()
+                        showFaceToFace = true
+                    },
+                    label = { Text(stringResource(R.string.face_to_face_open)) },
+                    leadingIcon = {
+                        Icon(
+                            AppIcons.FaceToFace,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    enabled = !uiState.isInitializing && !uiState.isMicPermissionDenied &&
+                        !uiState.isFinalizingSession
+                )
+                FilterChip(
+                    selected = pushToTalkMode,
+                    onClick = {
+                        pushToTalkMode = !pushToTalkMode
+                        if (pushToTalkMode && uiState.isRecording) {
+                            viewModel.pauseStreaming()
+                        }
+                    },
+                    label = { Text(stringResource(R.string.push_to_talk_toggle)) },
+                    leadingIcon = {
+                        Icon(
+                            AppIcons.HoldToTalk,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    enabled = !uiState.isFinalizingSession
+                )
+            }
+
+            if (pushToTalkMode) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.45f)
+                ) {
+                    Text(
+                        text = stringResource(
+                            if (uiState.isRecording) R.string.push_to_talk_active_hint
+                            else R.string.push_to_talk_hint
+                        ),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 6.dp)
+                    )
                 }
             }
 
@@ -609,6 +743,36 @@ fun MainScreen(
                     }
                 }
             }
+        }
+    }
+
+    // Full-screen face-to-face conversation view. Rendered as a dialog so it
+    // covers the top/bottom bars and can hide the system bars while open.
+    if (showFaceToFace) {
+        Dialog(
+            onDismissRequest = { showFaceToFace = false },
+            properties = DialogProperties(
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            FaceToFaceScreen(
+                uiState = uiState,
+                canRecord = !uiState.isInitializing && !uiState.isMicPermissionDenied,
+                onExit = { showFaceToFace = false },
+                onStop = {
+                    showFaceToFace = false
+                    viewModel.stopStreaming()
+                },
+                onOpenPhrasebook = {
+                    showFaceToFace = false
+                    onNavigateToPhrasebook()
+                },
+                onPushToTalkStart = viewModel::startPushToTalk,
+                onPushToTalkStop = viewModel::stopPushToTalk,
+                onAutoListenStart = viewModel::startStreaming,
+                onAutoListenStop = viewModel::pauseStreaming
+            )
         }
     }
 }

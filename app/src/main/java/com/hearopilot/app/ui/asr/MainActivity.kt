@@ -23,6 +23,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -30,7 +31,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.Density
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
@@ -89,12 +92,20 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            LibellulaTheme(themeMode = settings.themeMode) {
-                Surface(
-                    modifier = Modifier.fillMaxSize(),
-                    color = MaterialTheme.colorScheme.background
-                ) {
-                    LibellulaApp()
+            val baseDensity = LocalDensity.current
+            CompositionLocalProvider(
+                LocalDensity provides Density(
+                    density = baseDensity.density,
+                    fontScale = baseDensity.fontScale * settings.fontScale
+                )
+            ) {
+                LibellulaTheme(themeMode = settings.themeMode) {
+                    Surface(
+                        modifier = Modifier.fillMaxSize(),
+                        color = MaterialTheme.colorScheme.background
+                    ) {
+                        LibellulaApp()
+                    }
                 }
             }
         }
@@ -188,6 +199,9 @@ fun LibellulaApp() {
                 },
                 onNavigateToSearch = {
                     navController.navigate("search")
+                },
+                onNavigateToPhrasebook = {
+                    navController.navigate("phrasebook")
                 }
             )
         }
@@ -218,6 +232,19 @@ fun LibellulaApp() {
                 },
                 onNavigateToLlmDownload = {
                     navController.navigate("llm_download_standalone")
+                },
+                onNavigateToPhrasebook = {
+                    navController.navigate("phrasebook")
+                }
+            )
+        }
+
+        // Offline phrasebook — accessible from the home screen and the session
+        // screen's face-to-face view.
+        composable("phrasebook") {
+            PhrasebookScreen(
+                onNavigateBack = {
+                    if (navController.previousBackStackEntry != null) navController.popBackStack()
                 }
             )
         }

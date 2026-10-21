@@ -55,6 +55,7 @@ class SettingsRepositoryImpl @Inject constructor(
         val LLM_MODEL_PATH = stringPreferencesKey("llm_model_path")
         val AUTO_START_LLM = booleanPreferencesKey("auto_start_llm")
         val THEME_MODE = stringPreferencesKey("theme_mode")
+        val FONT_SCALE = floatPreferencesKey("font_scale")
 
         // VAD parameters
         val VAD_MIN_SILENCE_DURATION = floatPreferencesKey("vad_min_silence_duration")
@@ -123,6 +124,8 @@ class SettingsRepositoryImpl @Inject constructor(
                 } catch (e: IllegalArgumentException) {
                     defaults.themeMode
                 },
+                fontScale = (preferences[Keys.FONT_SCALE] ?: defaults.fontScale)
+                    .takeIf { it in AppSettings.FONT_SCALE_OPTIONS } ?: defaults.fontScale,
 
                 // VAD parameters
                 vadMinSilenceDuration = preferences[Keys.VAD_MIN_SILENCE_DURATION] ?: defaults.vadMinSilenceDuration,
@@ -210,6 +213,7 @@ class SettingsRepositoryImpl @Inject constructor(
             }
             preferences[Keys.AUTO_START_LLM] = settings.llmEnabled
             preferences[Keys.THEME_MODE] = settings.themeMode.name
+            preferences[Keys.FONT_SCALE] = settings.fontScale
 
             // VAD parameters
             preferences[Keys.VAD_MIN_SILENCE_DURATION] = settings.vadMinSilenceDuration

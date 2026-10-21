@@ -34,6 +34,8 @@ data class AppSettings(
     val llmModelPath: String = "",
     val llmEnabled: Boolean = true, // When false, LLM is never loaded during recording sessions
     val themeMode: ThemeMode = ThemeMode.SYSTEM,
+    // Multiplier applied on top of the system font scale (1.0 / 1.15 / 1.3 / 1.5).
+    val fontScale: Float = 1.0F,
     // LLM model variant — determines which GGUF file is downloaded and used.
     // Qwen 3.5 0.8B is the default because interpretation needs solid Chinese support.
     val llmModelVariant: LlmModelVariant = LlmModelVariant.QWEN3_5_Q8_0,
@@ -74,4 +76,9 @@ data class AppSettings(
     // Future inferences with chars >= threshold proactively use conservative threads.
     // Default Int.MAX_VALUE means "not yet calibrated" — no proactive throttling until learned.
     val conservativeThreadsCharThreshold: Int = Int.MAX_VALUE
-)
+) {
+    companion object {
+        /** Font scale multipliers selectable in Settings. */
+        val FONT_SCALE_OPTIONS = listOf(1.0F, 1.15F, 1.3F, 1.5F)
+    }
+}

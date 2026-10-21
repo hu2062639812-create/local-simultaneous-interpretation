@@ -489,10 +489,35 @@ class MainViewModel @Inject constructor(
                 recordingDurationMillis = pausedDuration
             )
         }
+        // Push-to-talk can queue a pause while the previous pause is still draining.
+        // Chain the teardown so two pause pipelines never run concurrently.
+        val previousTransition = streamTransitionJob
         streamTransitionJob = viewModelScope.launch {
+            previousTransition?.takeIf { it.isActive }?.join()
             pauseCapture(pausedDuration)
         }
         Log.i(TAG, "Session paused at ${pausedDuration}ms")
+    }
+
+    /**
+     * Push-to-talk press: start (or resume) capture while the user holds the button.
+     * Release is handled by [stopPushToTalk], which pauses and flushes the utterance.
+     */
+    fun startPushToTalk() {
+        val current = _uiState.value
+        if (current.isRecording || current.isFinalizingSession) return
+        Log.i(TAG, "Push-to-talk pressed")
+        startStreaming()
+    }
+
+    /**
+     * Push-to-talk release: pause capture immediately. The STT pipeline's stop flush
+     * emits the last utterance and the translation worker keeps draining it.
+     */
+    fun stopPushToTalk() {
+        if (!_uiState.value.isRecording) return
+        Log.i(TAG, "Push-to-talk released")
+        pauseStreaming()
     }
 
     private suspend fun pauseCapture(pausedDuration: Long) {
