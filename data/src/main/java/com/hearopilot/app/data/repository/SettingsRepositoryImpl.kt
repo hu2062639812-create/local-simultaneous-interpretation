@@ -50,6 +50,9 @@ class SettingsRepositoryImpl @Inject constructor(
         // Translation settings
         val TRANSLATION_TARGET_LANGUAGE = stringPreferencesKey("translation_target_language")
 
+        // TTS read-aloud
+        val TTS_ENABLED = booleanPreferencesKey("tts_enabled")
+
         // General settings
         val STT_MODEL_PATH = stringPreferencesKey("stt_model_path")
         val LLM_MODEL_PATH = stringPreferencesKey("llm_model_path")
@@ -114,6 +117,9 @@ class SettingsRepositoryImpl @Inject constructor(
                 // Translation settings
                 translationTargetLanguage = preferences[Keys.TRANSLATION_TARGET_LANGUAGE]
                     ?: defaults.translationTargetLanguage,
+
+                // TTS read-aloud
+                ttsEnabled = preferences[Keys.TTS_ENABLED] ?: defaults.ttsEnabled,
 
                 // General settings
                 sttModelPath = preferences[Keys.STT_MODEL_PATH] ?: defaults.sttModelPath,
@@ -203,6 +209,9 @@ class SettingsRepositoryImpl @Inject constructor(
 
             // Translation settings
             preferences[Keys.TRANSLATION_TARGET_LANGUAGE] = settings.translationTargetLanguage
+
+            // TTS read-aloud
+            preferences[Keys.TTS_ENABLED] = settings.ttsEnabled
 
             // General settings
             if (settings.sttModelPath.isNotBlank()) {

@@ -47,7 +47,11 @@ class SettingsViewModel @Inject constructor(
     private val _isLlmDownloaded = MutableStateFlow(false)
     val isLlmDownloaded: StateFlow<Boolean> = _isLlmDownloaded.asStateFlow()
 
+    private val _isTtsDownloaded = MutableStateFlow(false)
+    val isTtsDownloaded: StateFlow<Boolean> = _isTtsDownloaded.asStateFlow()
+
     val llmDownloadState: StateFlow<DownloadState> = downloadStateManager.llmDownloadState
+    val ttsDownloadState: StateFlow<DownloadState> = downloadStateManager.ttsDownloadState
 
     // Tracks which variant is currently being downloaded so that llmModelPath is updated
     // to the correct file when the download completes, regardless of the selected variant.
@@ -109,6 +113,7 @@ class SettingsViewModel @Inject constructor(
                 // Re-check download status whenever settings change (variant may have changed).
                 val filename = modelConfigForVariant(loadedSettings.llmModelVariant).llmFilename
                 _isLlmDownloaded.value = modelDownloadManager.isLlmModelDownloaded(filename)
+                _isTtsDownloaded.value = modelDownloadManager.isTtsModelDownloaded()
             }
         }
         // Also re-check download status whenever the download state changes.
@@ -128,6 +133,11 @@ class SettingsViewModel @Inject constructor(
                     }
                     _activeDownloadVariant.value = null
                 }
+            }
+        }
+        viewModelScope.launch {
+            downloadStateManager.ttsDownloadState.collect {
+                _isTtsDownloaded.value = modelDownloadManager.isTtsModelDownloaded()
             }
         }
     }
@@ -377,6 +387,35 @@ class SettingsViewModel @Inject constructor(
             val updatedSettings = _settings.value.copy(llmEnabled = enabled)
             settingsRepository.updateSettings(updatedSettings)
         }
+    }
+
+    /**
+     * Enable or disable the read-aloud feature (offline TTS).
+     *
+     * When enabled, completed translations are spoken aloud with the
+     * vits-melo-tts-zh_en voice. Default off because playback over the
+     * loudspeaker can be picked up by the live microphone.
+     *
+     * @param enabled Whether translations should be read aloud
+     */
+    fun updateTtsEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            val updatedSettings = _settings.value.copy(ttsEnabled = enabled)
+            settingsRepository.updateSettings(updatedSettings)
+        }
+    }
+
+    /**
+     * Start the TTS model download (~169 MB, vits-melo-tts-zh_en).
+     * Safe to call again after an interruption (resumes from .partial).
+     */
+    fun startTtsDownload() {
+        androidDownloadManager.startTtsDownload()
+    }
+
+    /** Resume an interrupted TTS model download. */
+    fun retryTtsDownload() {
+        androidDownloadManager.startTtsDownload()
     }
 
     /**

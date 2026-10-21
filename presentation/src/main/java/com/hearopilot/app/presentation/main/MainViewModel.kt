@@ -14,6 +14,7 @@ import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.LlmModelVariant
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.SttEngine
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.domain.repository.LlmRepository
 import com.hearopilot.app.domain.repository.SettingsRepository
 import com.hearopilot.app.domain.repository.SttRepository
@@ -32,6 +33,7 @@ import com.hearopilot.app.domain.usecase.transcription.DeleteInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveSegmentUseCase
 import com.hearopilot.app.domain.usecase.transcription.UpdateSessionDurationUseCase
+import com.hearopilot.app.feature.stt.tts.TtsEngine
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
@@ -100,6 +102,7 @@ class MainViewModel @Inject constructor(
     private val downloadStateManager: DownloadStateManager,
     private val serviceController: RecordingServiceController,
     private val llmProcessingServiceController: LlmProcessingServiceController,
+    private val ttsEngine: TtsEngine,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -228,21 +231,22 @@ class MainViewModel @Inject constructor(
             val settings = settingsRepository.getSettings().first()
             _uiState.update { it.copy(settings = settings) }
 
-            // Initialize STT. Luganda mode (outputLanguage "lg") uses the Omnilingual
-            // 1600-language CTC engine; everything else uses SenseVoice. Read the session
+            // Initialize STT. Sessions whose output language is spoken with the
+            // Omnilingual 1600-language engine (Luganda/Swahili/French/Arabic) use
+            // that recognizer; everything else uses SenseVoice. Read the session
             // directly to avoid a race with the init-block coroutine that sets
             // currentOutputLanguage.
             val session = transcriptionRepository.getSession(sessionId).first()
             val sessionOutputLanguage = session?.outputLanguage ?: currentOutputLanguage
-            val lugandaMode = sessionOutputLanguage?.startsWith("lg") == true
+            val omnilingualMode = SupportedLanguages.isOmnilingualMode(sessionOutputLanguage)
 
-            if (lugandaMode) {
-                val lugandaModelPath = modelDownloadManager.getLugandaModelPath()
-                if (lugandaModelPath == null) {
-                    Log.e(TAG, "Luganda model not downloaded, cannot initialize STT")
-                    _uiState.update { it.copy(error = "Luganda model not downloaded. Please download it from the New Session dialog.") }
+            if (omnilingualMode) {
+                val omnilingualModelPath = modelDownloadManager.getLugandaModelPath()
+                if (omnilingualModelPath == null) {
+                    Log.e(TAG, "Omnilingual model not downloaded, cannot initialize STT")
+                    _uiState.update { it.copy(error = "多语言识别模型未下载。请在新建会话窗口下载。") }
                 } else {
-                    startSttStreamingUseCase(lugandaModelPath, SttEngine.OMNILINGUAL)
+                    startSttStreamingUseCase(omnilingualModelPath, SttEngine.OMNILINGUAL)
                         .onFailure { e ->
                             Log.e(TAG, "Omnilingual STT initialization failed", e)
                             _uiState.update { it.copy(error = "STT init failed: ${e.message}") }
@@ -464,16 +468,17 @@ class MainViewModel @Inject constructor(
         conservativeThreadsApplied = false
 
         // Check if the required STT model is downloaded before starting
-        val lugandaMode = (_uiState.value.outputLanguage ?: currentOutputLanguage)
-            ?.startsWith("lg") == true
-        if (lugandaMode && !modelDownloadManager.isLugandaModelDownloaded()) {
-            Log.e(TAG, "Luganda model not downloaded, cannot start recording")
+        val omnilingualMode = SupportedLanguages.isOmnilingualMode(
+            _uiState.value.outputLanguage ?: currentOutputLanguage
+        )
+        if (omnilingualMode && !modelDownloadManager.isLugandaModelDownloaded()) {
+            Log.e(TAG, "Omnilingual model not downloaded, cannot start recording")
             _uiState.update {
-                it.copy(error = "Luganda model not downloaded. Please download it from the New Session dialog.")
+                it.copy(error = "多语言识别模型未下载。请在新建会话窗口下载。")
             }
             return
         }
-        if (!lugandaMode && !modelDownloadManager.isSttModelDownloaded()) {
+        if (!omnilingualMode && !modelDownloadManager.isSttModelDownloaded()) {
             Log.e(TAG, "STT model not downloaded, cannot start recording")
             _uiState.update {
                 it.copy(error = "Speech recognition model not downloaded. Please download it from Settings.")
@@ -555,6 +560,20 @@ class MainViewModel @Inject constructor(
         if (!_uiState.value.isRecording) return
         Log.i(TAG, "Push-to-talk released")
         pauseStreaming()
+    }
+
+    /**
+     * Toggle the read-aloud feature from the session screen. Persisted globally;
+     * disabling also interrupts any playback in progress.
+     */
+    fun toggleTts() {
+        val enabled = !_uiState.value.settings.ttsEnabled
+        viewModelScope.launch {
+            settingsRepository.updateSettings(
+                _uiState.value.settings.copy(ttsEnabled = enabled)
+            )
+        }
+        if (!enabled) ttsEngine.stop()
     }
 
     private suspend fun pauseCapture(pausedDuration: Long) {
@@ -643,6 +662,16 @@ class MainViewModel @Inject constructor(
         transcriptionJob?.cancel()
         transcriptionJob = viewModelScope.launch {
             sharedSttStream.collect { segment ->
+                // While TTS reads a translation aloud, the live microphone picks up
+                // the playback; drop those segments to prevent an echo loop. The
+                // user's own speech in this short window is dropped too — the
+                // trade-off that makes loudspeaker read-aloud safe without an
+                // echo-cancelling signal path.
+                if (ttsEngine.isSpeaking.value) {
+                    Log.d(TAG, "TTS speaking — dropping segment to avoid mic echo")
+                    return@collect
+                }
+
                 Log.d(TAG, "Received segment: ${segment.text} (complete=${segment.isComplete})")
 
                 // Add sessionId to segment
@@ -764,6 +793,17 @@ class MainViewModel @Inject constructor(
                                 ).onFailure { e ->
                                     Log.e(TAG, "Failed to store translation: ${e.message}")
                                 }
+                                // Read the translation aloud when enabled. Only zh/en
+                                // targets are spoken — the offline TTS model has no
+                                // voice for Luganda or other languages (their Chinese
+                                // translations are still spoken, since those target "zh").
+                                if (_uiState.value.settings.ttsEnabled &&
+                                    translation.text.isNotBlank() &&
+                                    (expectedTarget?.startsWith("zh") == true ||
+                                        expectedTarget?.startsWith("en") == true)
+                                ) {
+                                    ttsEngine.speak(translation.text)
+                                }
                             } else if (expectedTarget != null) {
                                 // A null translation is expected only when the utterance
                                 // already is in the requested output language.
@@ -857,6 +897,7 @@ class MainViewModel @Inject constructor(
         _uiState.update {
             it.copy(isRecording = false, isPaused = false, isFinalizingSession = true)
         }
+        ttsEngine.stop()
         val pendingTransition = streamTransitionJob
 
         viewModelScope.launch {
@@ -1191,6 +1232,9 @@ class MainViewModel @Inject constructor(
 
     override fun onCleared() {
         super.onCleared()
+
+        // Interrupt any read-aloud playback immediately — the session is gone.
+        ttsEngine.stop()
 
         // IMPORTANT: viewModelScope is already cancelled by the time onCleared() runs —
         // lifecycle-viewmodel calls clear() which closes all tagged Closeables (including

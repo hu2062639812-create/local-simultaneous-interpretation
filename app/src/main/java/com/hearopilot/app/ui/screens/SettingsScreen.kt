@@ -1,31 +1,44 @@
 ﻿package com.hearopilot.app.ui.screens
 
 import android.app.Activity
+import android.content.ClipData
+import android.content.ClipboardManager
 import android.content.Context
 import android.content.ContextWrapper
+import android.widget.Toast
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import com.hearopilot.app.ui.icons.AppIcons
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hearopilot.app.ui.R
@@ -69,6 +82,8 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val isLlmDownloaded by viewModel.isLlmDownloaded.collectAsStateWithLifecycle()
     val llmDownloadState by viewModel.llmDownloadState.collectAsStateWithLifecycle()
+    val isTtsDownloaded by viewModel.isTtsDownloaded.collectAsStateWithLifecycle()
+    val ttsDownloadState by viewModel.ttsDownloadState.collectAsStateWithLifecycle()
     val activeDownloadVariant by viewModel.activeDownloadVariant.collectAsStateWithLifecycle()
     val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
@@ -128,6 +143,25 @@ fun SettingsScreen(
                     enabled = settings.llmEnabled,
                     onEnabledChange = { viewModel.updateLlmEnabled(it) }
                 )
+            }
+
+            // Read-aloud (TTS) Section
+            SettingsSection(title = stringResource(R.string.settings_section_tts)) {
+                TtsEnabledSetting(
+                    enabled = settings.ttsEnabled,
+                    onEnabledChange = { viewModel.updateTtsEnabled(it) }
+                )
+                TtsModelDownloadSetting(
+                    isDownloaded = isTtsDownloaded,
+                    downloadState = ttsDownloadState,
+                    onStartDownload = { viewModel.startTtsDownload() },
+                    onRetryDownload = { viewModel.retryTtsDownload() }
+                )
+            }
+
+            // Support (WeChat appreciation) Section
+            SettingsSection(title = stringResource(R.string.settings_section_support)) {
+                SupportSetting()
             }
 
             // Appearance Section
@@ -1703,6 +1737,141 @@ private fun LlmModelDownloadSetting(
 }
 
 /**
+ * TTS read-aloud toggle.
+ *
+ * When enabled, completed translations are spoken aloud with the offline
+ * vits-melo-tts-zh_en voice. Default off: loudspeaker playback can be picked
+ * up by the live microphone, so headphones are recommended.
+ */
+@Composable
+private fun TtsEnabledSetting(
+    enabled: Boolean,
+    onEnabledChange: (Boolean) -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(
+                text = stringResource(R.string.settings_tts_enabled_title),
+                style = MaterialTheme.typography.bodyLarge,
+                fontWeight = FontWeight.Medium,
+                color = MaterialTheme.colorScheme.onSurface
+            )
+            Text(
+                text = stringResource(R.string.settings_tts_enabled_desc),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Spacer(modifier = Modifier.width(12.dp))
+        Switch(
+            checked = enabled,
+            onCheckedChange = onEnabledChange
+        )
+    }
+}
+
+/**
+ * TTS voice model file status card (~169 MB, vits-melo-tts-zh_en).
+ *
+ * Mirrors [LlmModelDownloadSetting]: shows a "Download" button while the model
+ * is missing, progress while downloading, and a ready badge once complete.
+ */
+@Composable
+private fun TtsModelDownloadSetting(
+    isDownloaded: Boolean,
+    downloadState: DownloadState,
+    onStartDownload: () -> Unit,
+    onRetryDownload: () -> Unit
+) {
+    val isDownloading = downloadState is DownloadState.Downloading
+    val isError = downloadState is DownloadState.Error
+    val progress = (downloadState as? DownloadState.Downloading)?.progress?.percentage ?: 0
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress / 100f,
+        animationSpec = tween(durationMillis = 300),
+        label = "tts_settings_progress"
+    )
+
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_tts_model_file_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.settings_tts_model_file_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (isDownloaded || isDownloading) {
+                Spacer(modifier = Modifier.width(12.dp))
+                Surface(
+                    color = if (isDownloaded) AccentSuccess.copy(alpha = 0.15f)
+                    else MaterialTheme.colorScheme.primary.copy(alpha = 0.1f),
+                    shape = MaterialTheme.shapes.small
+                ) {
+                    Text(
+                        text = if (isDownloaded) stringResource(R.string.settings_llm_model_ready)
+                        else stringResource(R.string.settings_llm_model_downloading, progress),
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp),
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = if (isDownloaded) AccentSuccess
+                        else MaterialTheme.colorScheme.primary
+                    )
+                }
+            }
+        }
+
+        if (isDownloading) {
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.primary,
+                trackColor = MaterialTheme.colorScheme.outline
+            )
+        }
+
+        if (!isDownloaded && !isDownloading) {
+            Button(
+                onClick = if (isError) onRetryDownload else onStartDownload,
+                modifier = Modifier.fillMaxWidth(),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = if (isError) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.primary
+                )
+            ) {
+                Icon(
+                    imageVector = AppIcons.Download,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp)
+                )
+                Spacer(modifier = Modifier.width(8.dp))
+                Text(
+                    text = if (isError) stringResource(R.string.settings_llm_model_retry)
+                    else stringResource(R.string.settings_llm_model_download)
+                )
+            }
+        }
+    }
+}
+
+/**
  * LLM enable/disable toggle.
  *
  * When disabled, the LLM is never loaded during recording sessions,
@@ -1812,6 +1981,171 @@ private fun TranslationLanguageSetting(
                         } else null
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Support entry: opens a dialog with the WeChat collection code
+ * (res/drawable-nodpi/appreciate_qr.jpg) and suggested tip amounts.
+ */
+@Composable
+private fun SupportSetting() {
+    var showDialog by remember { mutableStateOf(false) }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable { showDialog = true }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = AppIcons.FavoriteHeart,
+                contentDescription = null,
+                tint = ModeAmberTint,
+                modifier = Modifier.size(20.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.settings_support_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.settings_support_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            Icon(
+                imageVector = AppIcons.ChevronRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+    }
+
+    if (showDialog) {
+        SupportQrDialog(onDismiss = { showDialog = false })
+    }
+}
+
+@Composable
+private fun SupportQrDialog(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val clipboard = remember {
+        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    }
+    val colaPrice = stringResource(R.string.support_amount_cola_price)
+    val coffeePrice = stringResource(R.string.support_amount_coffee_price)
+    fun copyAmount(amount: String) {
+        clipboard.setPrimaryClip(ClipData.newPlainText(amount, amount))
+        Toast.makeText(
+            context,
+            context.getString(R.string.support_amount_copied, amount),
+            Toast.LENGTH_SHORT
+        ).show()
+    }
+
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(usePlatformDefaultWidth = false)
+    ) {
+        Surface(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 40.dp),
+            shape = MaterialTheme.shapes.large,
+            color = MaterialTheme.colorScheme.surface,
+            tonalElevation = 0.dp
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.spacedBy(14.dp)
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.support_dialog_title),
+                        style = MaterialTheme.typography.titleLarge,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    IconButton(onClick = onDismiss) {
+                        Icon(
+                            imageVector = AppIcons.Close,
+                            contentDescription = stringResource(R.string.cancel),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Image(
+                    painter = painterResource(R.drawable.appreciate_qr),
+                    contentDescription = stringResource(R.string.support_dialog_title),
+                    contentScale = ContentScale.Fit,
+                    modifier = Modifier
+                        .height(320.dp)
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(Color.White)
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = false,
+                        onClick = { copyAmount(colaPrice) },
+                        label = {
+                            Text(stringResource(R.string.support_amount_cola))
+                            Text(
+                                text = colaPrice,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = { copyAmount(coffeePrice) },
+                        label = {
+                            Text(stringResource(R.string.support_amount_coffee))
+                            Text(
+                                text = coffeePrice,
+                                fontWeight = FontWeight.Bold
+                            )
+                        }
+                    )
+                    FilterChip(
+                        selected = false,
+                        onClick = { },
+                        label = { Text(stringResource(R.string.support_amount_custom)) }
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.support_amount_hint),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
+                Text(
+                    text = stringResource(R.string.support_dialog_subtitle),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center
+                )
             }
         }
     }

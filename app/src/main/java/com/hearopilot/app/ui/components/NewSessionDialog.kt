@@ -24,6 +24,7 @@ import com.hearopilot.app.domain.model.AppSettings
 import com.hearopilot.app.domain.model.DownloadState
 import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.RecordingMode
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.ui.icons.AppIcons
 import com.hearopilot.app.ui.ui.theme.*
 
@@ -32,7 +33,8 @@ import com.hearopilot.app.ui.ui.theme.*
  *
  * Every session is created as [RecordingMode.REAL_TIME_TRANSLATION] with an
  * end-of-session summary. The only user choices are the translation direction
- * (auto / into Chinese / into English / Chinese-Luganda) and an optional session topic.
+ * (auto / into Chinese / into English / Chinese with Luganda, Kiswahili, French
+ * or Arabic) and an optional session topic.
  */
 @Composable
 fun NewSessionDialog(
@@ -44,7 +46,7 @@ fun NewSessionDialog(
     onDownloadLugandaModel: () -> Unit = {}
 ) {
     // null = auto (bidirectional), "zh" = force Chinese output, "en" = force English output,
-    // "lg" = Chinese <-> Luganda (Uganda).
+    // "lg"/"sw"/"fr"/"ar" = Chinese <-> that language (Omnilingual ASR).
     var direction by remember { mutableStateOf<String?>(null) }
     var sessionTopic by remember { mutableStateOf("") }
 
@@ -136,10 +138,28 @@ fun NewSessionDialog(
                             isSelected = direction == "lg",
                             onClick = { direction = "lg" }
                         )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_sw),
+                            description = stringResource(R.string.interpretation_direction_sw_desc),
+                            isSelected = direction == "sw",
+                            onClick = { direction = "sw" }
+                        )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_fr),
+                            description = stringResource(R.string.interpretation_direction_fr_desc),
+                            isSelected = direction == "fr",
+                            onClick = { direction = "fr" }
+                        )
+                        DirectionOption(
+                            title = stringResource(R.string.interpretation_direction_ar),
+                            description = stringResource(R.string.interpretation_direction_ar_desc),
+                            isSelected = direction == "ar",
+                            onClick = { direction = "ar" }
+                        )
                     }
 
-                    if (direction == "lg" && !isLugandaModelDownloaded) {
-                        LugandaDownloadCard(
+                    if (SupportedLanguages.isOmnilingualMode(direction) && !isLugandaModelDownloaded) {
+                        OmnilingualDownloadCard(
                             downloadState = lugandaDownloadState,
                             onDownload = onDownloadLugandaModel
                         )
@@ -202,7 +222,8 @@ fun NewSessionDialog(
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !(direction == "lg" && !isLugandaModelDownloaded)
+                        enabled = !(SupportedLanguages.isOmnilingualMode(direction) &&
+                            !isLugandaModelDownloaded)
                     )
                 }
             }
@@ -211,7 +232,7 @@ fun NewSessionDialog(
 }
 
 @Composable
-private fun LugandaDownloadCard(
+private fun OmnilingualDownloadCard(
     downloadState: DownloadState,
     onDownload: () -> Unit
 ) {
@@ -226,13 +247,13 @@ private fun LugandaDownloadCard(
             verticalArrangement = Arrangement.spacedBy(8.dp)
         ) {
             Text(
-                text = stringResource(R.string.luganda_model_title),
+                text = stringResource(R.string.omnilingual_model_title),
                 style = MaterialTheme.typography.bodyMedium,
                 fontWeight = FontWeight.SemiBold,
                 color = MaterialTheme.colorScheme.onSurface
             )
             Text(
-                text = stringResource(R.string.luganda_model_desc),
+                text = stringResource(R.string.omnilingual_model_desc),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -245,7 +266,7 @@ private fun LugandaDownloadCard(
                     )
                     Text(
                         text = stringResource(
-                            R.string.luganda_model_progress, state.progress.percentage
+                            R.string.omnilingual_model_progress, state.progress.percentage
                         ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -253,17 +274,17 @@ private fun LugandaDownloadCard(
                 }
                 is DownloadState.Error -> {
                     Text(
-                        text = stringResource(R.string.luganda_model_error, state.message),
+                        text = stringResource(R.string.omnilingual_model_error, state.message),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error
                     )
                     OutlinedButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.luganda_model_retry))
+                        Text(stringResource(R.string.omnilingual_model_retry))
                     }
                 }
                 else -> {
                     OutlinedButton(onClick = onDownload, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.luganda_model_download))
+                        Text(stringResource(R.string.omnilingual_model_download))
                     }
                 }
             }

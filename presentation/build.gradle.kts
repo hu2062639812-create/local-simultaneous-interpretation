@@ -26,6 +26,7 @@ android {
 dependencies {
     implementation(project(":domain"))
     implementation(project(":data"))
+    implementation(project(":feature-stt"))
 
     implementation(libs.hilt.android)
     ksp(libs.hilt.compiler)

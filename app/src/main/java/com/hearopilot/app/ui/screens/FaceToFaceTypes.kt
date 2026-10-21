@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.domain.model.TranscriptionSegment
 
 internal enum class FaceSide { Owner, Counterpart }
@@ -58,12 +59,19 @@ internal fun faceStatusText(status: FaceStatus, chinese: Boolean): String = when
     FaceStatus.Idle -> if (chinese) "按住说话" else "Hold to speak"
 }
 
-internal fun TranscriptionSegment.languageCode(lugandaMode: Boolean = false): String {
+/**
+ * Source-language resolution shared by the face-to-face panels.
+ *
+ * [nonCjkCode] is the session's speech-language code in Omnilingual sessions
+ * (Luganda/Swahili/French/Arabic); in those sessions non-Chinese text is
+ * attributed to that language.
+ */
+internal fun TranscriptionSegment.languageCode(nonCjkCode: String? = null): String {
     val detected = detectedLanguage?.lowercase()?.trim()
     return when {
         detected == null -> when {
             text.any { it.code in 0x4E00..0x9FFF } -> "zh"
-            lugandaMode -> "lg"
+            nonCjkCode != null -> nonCjkCode
             else -> "en"
         }
         detected.startsWith("zh") || detected.startsWith("yue") -> "zh"
@@ -75,9 +83,9 @@ internal fun TranscriptionSegment.languageCode(lugandaMode: Boolean = false): St
 
 internal fun TranscriptionSegment.textFor(
     language: String,
-    lugandaMode: Boolean = false
+    nonCjkCode: String? = null
 ): String? {
-    val source = languageCode(lugandaMode)
+    val source = languageCode(nonCjkCode)
     return if (source == language) {
         text.takeIf { it.isNotBlank() }
     } else {
@@ -102,8 +110,10 @@ internal fun FaceLanguagePill(language: String, isDark: Boolean) {
         Text(
             text = when (language) {
                 "zh" -> "中文"
-                "lg" -> "LUGANDA"
-                else -> "ENGLISH"
+                else -> SupportedLanguages.getByCode(language)
+                    ?.nativeName
+                    ?.uppercase()
+                    ?: "ENGLISH"
             },
             fontSize = 11.sp,
             fontWeight = FontWeight.Bold,

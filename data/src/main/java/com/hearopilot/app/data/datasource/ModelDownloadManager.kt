@@ -5,6 +5,7 @@ import android.util.Log
 import com.hearopilot.app.data.config.LugandaModelConfig
 import com.hearopilot.app.data.config.ModelConfig
 import com.hearopilot.app.data.config.DefaultModelConfig
+import com.hearopilot.app.data.config.TtsModelConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -293,6 +294,43 @@ class ModelDownloadManager(
         isComplete = { isLugandaModelDownloaded() },
         estimatedSize = LugandaModelConfig::estimatedSize,
         label = "Luganda"
+    )
+
+    /**
+     * Check if the optional TTS (speech synthesis) model is already downloaded.
+     */
+    fun isTtsModelDownloaded(): Boolean {
+        val dir = File(modelsDir, TtsModelConfig.DIR_NAME)
+        return TtsModelConfig.FILES.all { filename ->
+            val file = File(dir, filename)
+            file.exists() && file.length() > 0
+        }
+    }
+
+    /**
+     * Get the path to the TTS model directory, or null if it is not downloaded.
+     */
+    fun getTtsModelDir(): String? {
+        return if (isTtsModelDownloaded()) {
+            File(modelsDir, TtsModelConfig.DIR_NAME).absolutePath
+        } else {
+            null
+        }
+    }
+
+    /**
+     * Download the optional TTS model (vits-melo-tts-zh_en, ~169 MB).
+     *
+     * Uses the same resumable multi-file strategy as the other models so an
+     * interrupted download resumes from the last byte instead of restarting.
+     */
+    fun downloadTtsModel(): Flow<DownloadProgress> = downloadModelFiles(
+        dirName = TtsModelConfig.DIR_NAME,
+        baseUrl = TtsModelConfig.BASE_URL,
+        files = TtsModelConfig.FILES,
+        isComplete = { isTtsModelDownloaded() },
+        estimatedSize = TtsModelConfig::estimatedSize,
+        label = "TTS"
     )
 
     private fun downloadModelFiles(

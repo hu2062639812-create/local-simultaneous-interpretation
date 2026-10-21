@@ -1,5 +1,6 @@
 package com.hearopilot.app.domain.usecase.llm
 
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.domain.model.TranscriptionSegment
 import com.hearopilot.app.domain.repository.LlmRepository
 import kotlinx.coroutines.CancellationException
@@ -87,10 +88,9 @@ class TranslateSegmentUseCase(
         segment: TranscriptionSegment,
         outputLanguage: String? = null
     ): String {
-        val lugandaMode = outputLanguage
-            ?.lowercase()
-            ?.trim()
-            ?.startsWith("lg") == true
+        // Omnilingual sessions (Luganda/Swahili/French/Arabic output): non-Chinese
+        // recognized text is attributed to the session's speech language.
+        val sessionLang = SupportedLanguages.omnilingualCodeFor(outputLanguage)
         val detected = segment.detectedLanguage
             ?.lowercase()
             ?.trim()
@@ -98,9 +98,9 @@ class TranslateSegmentUseCase(
         return when {
             detected != null && (detected.startsWith("lg") || detected.startsWith("lug")) -> "lg"
             detected == null -> when {
-                // Omnilingual (Luganda engine) reports no language per utterance, so
-                // fall back to script detection inside a Chinese <-> Luganda session.
-                lugandaMode && !CJK.containsMatchIn(segment.text) -> "lg"
+                // Omnilingual recognizer reports no language per utterance, so
+                // fall back to script detection inside such sessions.
+                sessionLang != null && !CJK.containsMatchIn(segment.text) -> sessionLang
                 CJK.containsMatchIn(segment.text) -> "zh"
                 else -> "en"
             }
@@ -119,13 +119,14 @@ class TranslateSegmentUseCase(
                 if (sourceLanguage == "zh") null else "zh"
             preference.startsWith("en") ->
                 if (sourceLanguage == "en") null else "en"
-            preference.startsWith("lg") -> when (sourceLanguage) {
-                "zh" -> "lg"
-                "lg" -> "zh"
-                // Unexpected third language (e.g. English) in a Luganda session:
-                // translate into Chinese so the Chinese speaker can follow.
-                else -> "zh"
-            }
+            SupportedLanguages.isOmnilingualMode(preference) ->
+                when (sourceLanguage) {
+                    // The Chinese speaker hears the session language; the local
+                    // speaker's own language translates back into Chinese. Any
+                    // unexpected third language also lands in Chinese.
+                    "zh" -> SupportedLanguages.omnilingualCodeFor(preference)!!
+                    else -> "zh"
+                }
             else ->
                 if (sourceLanguage == "zh") "en" else "zh"
         }
@@ -138,6 +139,10 @@ class TranslateSegmentUseCase(
         code.startsWith("ko") -> "Korean"
         code.startsWith("lg") ->
             "Luganda (Oluganda, a Bantu language spoken in Uganda)"
+        code.startsWith("sw") ->
+            "Swahili (Kiswahili, a Bantu lingua franca of East Africa)"
+        code.startsWith("fr") -> "French"
+        code.startsWith("ar") -> "Arabic (Modern Standard Arabic)"
         else -> code
     }
 

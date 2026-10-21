@@ -29,6 +29,11 @@ data class AppSettings(
     // Translation settings — stores BCP-47 locale code (see SupportedLanguages)
     val translationTargetLanguage: String = SupportedLanguages.DEFAULT.code,
 
+    // When true, completed translations are read aloud with the offline
+    // vits-melo-tts-zh_en voice. Default off: playback over the loudspeaker can be
+    // picked up by the live microphone, so headphones are recommended.
+    val ttsEnabled: Boolean = false,
+
     // General settings
     val sttModelPath: String = "assets", // STT models are bundled in assets
     val llmModelPath: String = "",

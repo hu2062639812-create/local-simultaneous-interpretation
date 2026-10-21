@@ -56,5 +56,8 @@ jniLibs-stale-backup/
 /mumu*.png
 /final_on_instance1.png
 
+# Local test assets (audio samples, UI dumps, ad-hoc scripts)
+/test-assets/
+
 # Local Claude Code config (never publish)
 .claude/

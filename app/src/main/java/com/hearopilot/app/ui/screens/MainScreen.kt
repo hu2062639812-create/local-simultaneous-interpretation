@@ -46,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hearopilot.app.ui.R
 import com.hearopilot.app.ui.ui.theme.*
 import com.hearopilot.app.domain.model.DownloadState
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.presentation.main.MainViewModel
 import com.hearopilot.app.ui.components.ShimmerInsightCard
 import java.util.concurrent.TimeUnit
@@ -574,6 +575,19 @@ fun MainScreen(
                     },
                     enabled = !uiState.isFinalizingSession
                 )
+                FilterChip(
+                    selected = uiState.settings.ttsEnabled,
+                    onClick = { viewModel.toggleTts() },
+                    label = { Text(stringResource(R.string.tts_toggle)) },
+                    leadingIcon = {
+                        Icon(
+                            AppIcons.VolumeUp,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp)
+                        )
+                    },
+                    enabled = !uiState.isFinalizingSession
+                )
             }
 
             if (pushToTalkMode) {
@@ -669,7 +683,7 @@ fun MainScreen(
                             isRecording = uiState.isRecording,
                             isPaused = uiState.isPaused,
                             pendingTranslationIds = uiState.pendingTranslationIds,
-                            lugandaMode = uiState.outputLanguage?.startsWith("lg") == true,
+                            nonCjkCode = SupportedLanguages.omnilingualCodeFor(uiState.outputLanguage),
                             modifier = Modifier.fillMaxSize()
                         )
                         1 -> {

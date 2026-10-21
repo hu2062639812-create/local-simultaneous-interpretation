@@ -289,6 +289,28 @@
     <string name="settings_llm_enabled_title">Enable AI Insights</string>
     <string name="settings_llm_enabled_desc">When enabled, the AI model is loaded at the start of each recording session and generates insights in real-time. Disable to save memory and battery.</string>
 
+    <!-- Read-aloud (TTS) Settings -->
+    <string name="settings_section_tts">Read Aloud</string>
+    <string name="settings_tts_enabled_title">Read translations aloud</string>
+    <string name="settings_tts_enabled_desc">Speak each completed translation with an offline Chinese/English voice. Recommended with headphones — loudspeaker playback can be picked up by the microphone.</string>
+    <string name="settings_tts_model_file_title">Voice model</string>
+    <string name="settings_tts_model_file_desc">vits-melo-tts-zh_en (~169 MB), downloaded once. All synthesis runs on-device.</string>
+    <string name="tts_toggle">Read aloud</string>
+
+    <!-- Support (WeChat appreciation) -->
+    <string name="settings_section_support">Support</string>
+    <string name="settings_support_title">Support the developer</string>
+    <string name="settings_support_desc">Scan the WeChat appreciation code to support continued development</string>
+    <string name="support_dialog_title">WeChat appreciation code</string>
+    <string name="support_dialog_subtitle">Save or screenshot the code, then scan it with WeChat to send a tip. Thank you for your support!</string>
+    <string name="support_amount_cola">Cola</string>
+    <string name="support_amount_cola_price">¥3</string>
+    <string name="support_amount_coffee">Coffee</string>
+    <string name="support_amount_coffee_price">¥15</string>
+    <string name="support_amount_custom">Custom</string>
+    <string name="support_amount_hint">Tap an amount to copy it, then enter it in WeChat after scanning</string>
+    <string name="support_amount_copied">Amount %1$s copied</string>
+
     <!-- Microphone Permission -->
     <string name="permission_mic_required">Microphone permission required</string>
     <string name="permission_mic_denied">Microphone access was denied. Please grant it in the app settings to use transcription.</string>
@@ -369,12 +391,18 @@
     <string name="interpretation_direction_en_desc">Chinese speech is translated into English; English speech is kept as-is</string>
     <string name="interpretation_direction_lg">Chinese ⇄ Luganda (Uganda)</string>
     <string name="interpretation_direction_lg_desc">Chinese speech is translated into Luganda; Luganda speech is translated into Chinese</string>
-    <string name="luganda_model_title">Luganda speech model required</string>
-    <string name="luganda_model_desc">Luganda needs a separate on-device speech recognition model (~365 MB). Download once and it stays fully offline. Use Wi-Fi if possible.</string>
-    <string name="luganda_model_download">Download Luganda model (365 MB)</string>
-    <string name="luganda_model_progress">Downloading… %1$d%% (progress also in the notification bar)</string>
-    <string name="luganda_model_error">Download failed: %1$s</string>
-    <string name="luganda_model_retry">Retry download</string>
+    <string name="interpretation_direction_sw">Chinese ⇄ Kiswahili</string>
+    <string name="interpretation_direction_sw_desc">Chinese speech is translated into Kiswahili; Kiswahili speech is translated into Chinese</string>
+    <string name="interpretation_direction_fr">Chinese ⇄ French</string>
+    <string name="interpretation_direction_fr_desc">Chinese speech is translated into French; French speech is translated into Chinese</string>
+    <string name="interpretation_direction_ar">Chinese ⇄ Arabic</string>
+    <string name="interpretation_direction_ar_desc">Chinese speech is translated into Arabic; Arabic speech is translated into Chinese</string>
+    <string name="omnilingual_model_title">Multilingual speech model required</string>
+    <string name="omnilingual_model_desc">This language needs a separate on-device speech recognition model (~365 MB). Download once and it stays fully offline. Use Wi-Fi if possible.</string>
+    <string name="omnilingual_model_download">Download multilingual model (365 MB)</string>
+    <string name="omnilingual_model_progress">Downloading… %1$d%% (progress also in the notification bar)</string>
+    <string name="omnilingual_model_error">Download failed: %1$s</string>
+    <string name="omnilingual_model_retry">Retry download</string>
     <string name="interpretation_topic_label">Session topic (optional)</string>
     <string name="interpretation_topic_hint">e.g. Product design review</string>
     <string name="interpretation_offline_note">Speech recognition, translation and the final summary run entirely on this device. Download the models once, then no network is needed.</string>

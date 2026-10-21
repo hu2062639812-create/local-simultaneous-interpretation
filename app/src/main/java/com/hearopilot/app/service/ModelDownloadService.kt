@@ -86,29 +86,23 @@ class ModelDownloadService : Service() {
             combine(
                 downloadStateManager.sttDownloadState,
                 downloadStateManager.llmDownloadState,
-                downloadStateManager.lugandaDownloadState
-            ) { sttState, llmState, lugandaState ->
-                Triple(sttState, llmState, lugandaState)
+                downloadStateManager.lugandaDownloadState,
+                downloadStateManager.ttsDownloadState
+            ) { sttState, llmState, lugandaState, ttsState ->
+                listOf(sttState, llmState, lugandaState, ttsState)
             }
-                .collect { (sttState, llmState, lugandaState) ->
-                    val sttActive = sttState is DownloadState.Downloading
-                    val llmActive = llmState is DownloadState.Downloading
-                    val lugandaActive = lugandaState is DownloadState.Downloading
+                .collect { states ->
+                    val active = states.filterIsInstance<DownloadState.Downloading>()
 
-                    if (!sttActive && !llmActive && !lugandaActive) {
+                    if (active.isEmpty()) {
                         Log.d(TAG, "No active downloads — stopping service")
                         stopForeground(STOP_FOREGROUND_REMOVE)
                         stopSelf()
                         return@collect
                     }
 
-                    // Use the active download's percentage for the notification.
-                    val percentage = when {
-                        sttActive -> (sttState as DownloadState.Downloading).progress.percentage
-                        llmActive -> (llmState as DownloadState.Downloading).progress.percentage
-                        lugandaActive -> (lugandaState as DownloadState.Downloading).progress.percentage
-                        else -> 0
-                    }
+                    // Use the first active download's percentage for the notification.
+                    val percentage = active.first().progress.percentage
 
                     val updated = notificationManager.createNotification(percentage)
                     notificationManager.updateNotification(

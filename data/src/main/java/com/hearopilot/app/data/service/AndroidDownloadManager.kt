@@ -67,6 +67,7 @@ class AndroidDownloadManager @Inject constructor(
     private var sttProgressJob: Job? = null
     private var llmProgressJob: Job? = null
     private var lugandaProgressJob: Job? = null
+    private var ttsProgressJob: Job? = null
 
     // Tracks a legacy DM download ID so resumeLlmDownload() can remove it before renaming
     private var llmDownloadId: Long? = null
@@ -388,10 +389,58 @@ class AndroidDownloadManager @Inject constructor(
         // State reset above triggers the service observer → service stops itself.
     }
 
+    // ── TTS (vits-melo zh_en) ───────────────────────────────────────────────
+
+    /**
+     * Start the optional TTS model download via ModelDownloadManager.
+     *
+     * Reuses the same resumable multi-file strategy as the Luganda model so
+     * interrupted downloads resume instead of restarting.
+     */
+    fun startTtsDownload() {
+        Log.i(TAG, "Starting TTS download via ModelDownloadManager")
+        ttsProgressJob?.cancel()
+
+        downloadStateManager.updateTtsState(
+            DownloadState.Downloading(progress = DownloadProgress(0, 0, 0))
+        )
+
+        // Elevate to foreground so the download survives backgrounding.
+        startDownloadService()
+
+        ttsProgressJob = scope.launch {
+            try {
+                modelDownloadManager.downloadTtsModel().collect { p ->
+                    downloadStateManager.updateTtsState(
+                        DownloadState.Downloading(
+                            DownloadProgress(p.bytesDownloaded, p.totalBytes, p.percentage)
+                        )
+                    )
+                }
+                downloadStateManager.updateTtsState(DownloadState.Completed)
+            } catch (e: Exception) {
+                Log.e(TAG, "TTS download failed, .partial kept for resume", e)
+                downloadStateManager.updateTtsState(
+                    DownloadState.Error(e.message ?: "Download failed")
+                )
+            }
+            // The service observes DownloadStateManager and stops itself when no
+            // download is active; no explicit stop needed here.
+        }
+    }
+
+    /** Cancel an in-progress TTS model download. */
+    fun cancelTtsDownload() {
+        ttsProgressJob?.cancel()
+        downloadStateManager.resetTtsState()
+        // State reset above triggers the service observer → service stops itself.
+    }
+
     /** Cancel all downloads and release resources. */
     fun cleanup() {
         sttProgressJob?.cancel()
         llmProgressJob?.cancel()
         lugandaProgressJob?.cancel()
+        ttsProgressJob?.cancel()
     }
 }

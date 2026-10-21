@@ -31,6 +31,8 @@ object AppIcons {
     val Play: ImageVector get() = Icons.Outlined.PlayArrow
     val HoldToTalk: ImageVector get() = Icons.Outlined.RecordVoiceOver
     val Headphones: ImageVector get() = Icons.Outlined.Headphones
+    val VolumeUp: ImageVector get() = Icons.Outlined.VolumeUp
+    val FavoriteHeart: ImageVector get() = Icons.Outlined.FavoriteBorder
 
     // Face-to-face & offline tools
     val FaceToFace: ImageVector get() = Icons.Outlined.QuestionAnswer

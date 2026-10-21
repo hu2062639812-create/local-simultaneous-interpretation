@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.presentation.main.MainUiState
 
 /**
@@ -75,34 +76,30 @@ fun FaceToFaceScreen(
 
     // Owner's language follows the interface locale; the other side gets the
     // complementary language. The STT / translation pipeline is zh <-> en,
-    // except in Luganda mode (outputLanguage "lg") where it is zh <-> lg.
-    val lugandaMode = uiState.outputLanguage?.startsWith("lg") == true
+    // except in Omnilingual sessions (Luganda/Swahili/French/Arabic output)
+    // where the counterpart speaks the session language.
+    val counterpartCode = SupportedLanguages.omnilingualCodeFor(uiState.outputLanguage)
     val ownerIsChinese = LocalConfiguration.current.locales[0]
         .language.lowercase().startsWith("zh")
-    val bottomLanguage = if (lugandaMode || ownerIsChinese) "zh" else "en"
-    val topLanguage = when {
-        lugandaMode -> "lg"
-        ownerIsChinese -> "en"
-        else -> "zh"
-    }
+    val bottomLanguage = if (counterpartCode != null || ownerIsChinese) "zh" else "en"
+    val topLanguage = counterpartCode
+        ?: if (ownerIsChinese) "en" else "zh"
 
     val segments = uiState.allSegments
     val latest = segments.lastOrNull()
-    val latestSource = latest?.languageCode(lugandaMode)
-    val zhText = segments.asReversed().firstNotNullOfOrNull { it.textFor("zh", lugandaMode) }
-    val lgText = if (lugandaMode) {
-        segments.asReversed().firstNotNullOfOrNull { it.textFor("lg", true) }
-    } else null
-    val enText = segments.asReversed().firstNotNullOfOrNull { it.textFor("en", lugandaMode) }
+    val latestSource = latest?.languageCode(counterpartCode)
+    val zhText = segments.asReversed().firstNotNullOfOrNull { it.textFor("zh", counterpartCode) }
+    val counterpartText = counterpartCode?.let { code ->
+        segments.asReversed().firstNotNullOfOrNull { it.textFor(code, code) }
+    }
+    val enText = segments.asReversed().firstNotNullOfOrNull { it.textFor("en", counterpartCode) }
     val bottomText = when (bottomLanguage) {
         "zh" -> zhText
-        "lg" -> lgText
-        else -> enText
+        else -> counterpartText ?: enText
     }
     val topText = when (topLanguage) {
         "zh" -> zhText
-        "lg" -> lgText
-        else -> enText
+        else -> counterpartText ?: enText
     }
 
     val bottomStatus = resolveFaceStatus(

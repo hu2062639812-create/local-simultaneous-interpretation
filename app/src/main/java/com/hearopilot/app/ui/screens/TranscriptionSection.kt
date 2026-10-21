@@ -34,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import com.hearopilot.app.ui.R
 import com.hearopilot.app.ui.icons.AppIcons
 import com.hearopilot.app.ui.ui.theme.*
+import com.hearopilot.app.domain.model.SupportedLanguages
 import com.hearopilot.app.domain.model.TranscriptionSegment
 
 /**
@@ -47,7 +48,7 @@ fun TranscriptionSection(
     isRecording: Boolean,
     isPaused: Boolean = false,
     pendingTranslationIds: Set<String>,
-    lugandaMode: Boolean = false,
+    nonCjkCode: String? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -75,7 +76,7 @@ fun TranscriptionSection(
                     TranscriptionItem(
                         segment = segment,
                         isTranslating = segment.id in pendingTranslationIds,
-                        lugandaMode = lugandaMode
+                        nonCjkCode = nonCjkCode
                     )
                 }
             }
@@ -156,7 +157,7 @@ private fun TranscriptionEmptyState(
 private fun TranscriptionItem(
     segment: TranscriptionSegment,
     isTranslating: Boolean,
-    lugandaMode: Boolean
+    nonCjkCode: String?
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -173,7 +174,7 @@ private fun TranscriptionItem(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                LanguageBadge(segment, lugandaMode)
+                LanguageBadge(segment, nonCjkCode)
                 if (!segment.isComplete) {
                     Text(
                         text = stringResource(R.string.transcription_listening),
@@ -227,19 +228,20 @@ private fun TranscriptionItem(
 }
 
 @Composable
-private fun LanguageBadge(segment: TranscriptionSegment, lugandaMode: Boolean) {
+private fun LanguageBadge(segment: TranscriptionSegment, nonCjkCode: String?) {
     val detected = segment.detectedLanguage?.lowercase()
+    val sessionLang = nonCjkCode?.let { SupportedLanguages.getByCode(it) }
     val isChinese = detected?.startsWith("zh") == true ||
         detected?.startsWith("yue") == true ||
         (detected == null && segment.text.any { it.code in 0x4E00..0x9FFF })
-    val isLuganda = detected?.startsWith("lg") == true ||
-        detected?.startsWith("lug") == true ||
-        (detected == null && lugandaMode && !isChinese)
+    val isNonCjk = sessionLang != null && !isChinese &&
+        (detected == null || detected.startsWith(sessionLang.code))
     val badge = when {
         isChinese -> stringResource(R.string.language_badge_zh)
-        isLuganda -> stringResource(R.string.language_badge_lg)
+        isNonCjk -> sessionLang?.nativeName?.uppercase() ?: ""
         detected?.startsWith("en") == true -> stringResource(R.string.language_badge_en)
-        detected != null -> detected.take(2).uppercase()
+        detected != null -> SupportedLanguages.getByCode(detected.substringBefore('-'))
+            ?.nativeName?.uppercase() ?: detected.take(2).uppercase()
         else -> stringResource(R.string.language_badge_en)
     }
 
@@ -253,7 +255,7 @@ private fun LanguageBadge(segment: TranscriptionSegment, lugandaMode: Boolean) {
             .background(
                 when {
                     isChinese -> ModeEmeraldTint
-                    isLuganda -> ModeAmberTint
+                    isNonCjk -> ModeAmberTint
                     else -> ModeSkyBlueTint
                 }
             )
