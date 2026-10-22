@@ -290,10 +290,15 @@ class MainViewModel @Inject constructor(
                 // in Settings (without downloading) does not block inference.
                 // The "Download model" prompt in AI Insights is only shown when
                 // NO variant is on disk (i.e. user skipped the onboarding download).
-                val preferredFilename = modelConfigForVariant(settings.llmModelVariant).llmFilename
-                val llmModelPath = modelDownloadManager.getLlmModelPath(preferredFilename)
+                val preferredFilename = if (settings.llmModelVariant == LlmModelVariant.CUSTOM) {
+                    settings.customLlmFilename
+                } else {
+                    modelConfigForVariant(settings.llmModelVariant).llmFilename
+                }
+                val llmModelPath = preferredFilename.takeIf { it.isNotBlank() }
+                    ?.let { modelDownloadManager.getLlmModelPath(it) }
                     ?: LlmModelVariant.entries
-                        .filter { it != settings.llmModelVariant }
+                        .filter { it != LlmModelVariant.CUSTOM && it != settings.llmModelVariant }
                         .firstNotNullOfOrNull { variant ->
                             modelDownloadManager.getLlmModelPath(modelConfigForVariant(variant).llmFilename)
                         }
@@ -395,13 +400,19 @@ class MainViewModel @Inject constructor(
                         // settings flow until we see an emission whose selected variant's file
                         // is verifiably present on disk — that signals persistence is done.
                         val freshSettings = settingsRepository.getSettings().first { settings ->
-                            val filename = modelConfigForVariant(settings.llmModelVariant).llmFilename
+                            val filename = if (settings.llmModelVariant == LlmModelVariant.CUSTOM) {
+                                settings.customLlmFilename
+                            } else {
+                                modelConfigForVariant(settings.llmModelVariant).llmFilename
+                            }
                             modelDownloadManager.getLlmModelPath(filename) != null
                         }
                         _uiState.update { it.copy(settings = freshSettings) }
-                        val downloadedFilename = modelConfigForVariant(
-                            freshSettings.llmModelVariant
-                        ).llmFilename
+                        val downloadedFilename = if (freshSettings.llmModelVariant == LlmModelVariant.CUSTOM) {
+                            freshSettings.customLlmFilename
+                        } else {
+                            modelConfigForVariant(freshSettings.llmModelVariant).llmFilename
+                        }
                         val path = modelDownloadManager.getLlmModelPath(downloadedFilename)
                         if (path != null) {
                             // Never load the LLM into RAM while recording is active: the STT model

@@ -28,8 +28,8 @@ android {
         applicationId = "com.localinterpreter.app"
         minSdk = 30
         targetSdk = 35
-        versionCode = 20261028
-        versionName = "1.36.02"
+        versionCode = 20261029
+        versionName = "1.36.03"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {

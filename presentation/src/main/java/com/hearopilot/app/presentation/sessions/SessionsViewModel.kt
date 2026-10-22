@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import javax.inject.Inject
@@ -52,6 +53,12 @@ class SessionsViewModel @Inject constructor(
             settingsRepository.getSettings().collect { settings ->
                 _uiState.update { it.copy(settings = settings) }
             }
+        }
+        viewModelScope.launch {
+            // Resolve once: the tutorial only appears on the first entry into
+            // the sessions screen after install, never again afterwards.
+            val shown = settingsRepository.getSettings().first().hasShownFirstUseTutorial
+            _uiState.update { it.copy(showFirstUseTutorial = !shown) }
         }
         viewModelScope.launch {
             getTotalDataSizeUseCase().collect { bytes ->
@@ -178,6 +185,14 @@ class SessionsViewModel @Inject constructor(
                 }
             // Sessions list will automatically update via Flow
         }
+    }
+
+    /**
+     * Dismiss the first-use tutorial forever (skip or finished).
+     */
+    fun dismissFirstUseTutorial() {
+        _uiState.update { it.copy(showFirstUseTutorial = false) }
+        viewModelScope.launch { settingsRepository.markFirstUseTutorialShown() }
     }
 
     /**

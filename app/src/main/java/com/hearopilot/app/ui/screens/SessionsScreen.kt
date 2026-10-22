@@ -1,6 +1,8 @@
 ﻿package com.hearopilot.app.ui.screens
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -11,7 +13,9 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -30,6 +34,7 @@ import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.TranscriptionSession
 import com.hearopilot.app.presentation.sessions.SessionsViewModel
 import com.hearopilot.app.ui.components.DaytimeSkyBanner
+import com.hearopilot.app.ui.components.FirstUseTutorial
 import com.hearopilot.app.ui.components.ShimmerSessionList
 import com.hearopilot.app.ui.icons.AppIcons
 import java.text.SimpleDateFormat
@@ -54,6 +59,7 @@ fun SessionsScreen(
     viewModel: SessionsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var pendingDeleteSession by remember { mutableStateOf<TranscriptionSession?>(null) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -155,7 +161,8 @@ fun SessionsScreen(
                     SessionsList(
                         sessions = uiState.sessions,
                         totalDataSizeBytes = uiState.totalDataSizeBytes,
-                        onSessionClick = onNavigateToSessionDetails
+                        onSessionClick = onNavigateToSessionDetails,
+                        onSessionLongClick = { pendingDeleteSession = it }
                     )
                 }
             }
@@ -176,6 +183,23 @@ fun SessionsScreen(
                 onDownloadLugandaModel = { viewModel.downloadLugandaModel() }
             )
         }
+
+        // One-time first-use tutorial
+        if (uiState.showFirstUseTutorial) {
+            FirstUseTutorial(onDismiss = { viewModel.dismissFirstUseTutorial() })
+        }
+
+        // Long-press delete confirmation
+        pendingDeleteSession?.let { session ->
+            DeleteSessionDialog(
+                sessionName = session.name,
+                onDismiss = { pendingDeleteSession = null },
+                onConfirm = {
+                    viewModel.deleteSession(session.id)
+                    pendingDeleteSession = null
+                }
+            )
+        }
     }
 }
 
@@ -186,7 +210,8 @@ fun SessionsScreen(
 private fun SessionsList(
     sessions: List<TranscriptionSession>,
     totalDataSizeBytes: Long,
-    onSessionClick: (String) -> Unit
+    onSessionClick: (String) -> Unit,
+    onSessionLongClick: (TranscriptionSession) -> Unit
 ) {
     val navBarPadding = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
     LazyColumn(
@@ -204,6 +229,7 @@ private fun SessionsList(
             SessionCard(
                 session = session,
                 onClick = { onSessionClick(session.id) },
+                onLongClick = { onSessionLongClick(session) },
                 modifier = Modifier
                     .padding(horizontal = 16.dp)
                     .fillMaxWidth()
@@ -211,6 +237,47 @@ private fun SessionsList(
             Spacer(modifier = Modifier.height(8.dp))
         }
     }
+}
+
+/**
+ * Confirmation dialog for deleting a session via long-press on its card.
+ */
+@Composable
+private fun DeleteSessionDialog(
+    sessionName: String?,
+    onDismiss: () -> Unit,
+    onConfirm: () -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.delete_session_title), color = MaterialTheme.colorScheme.onSurface)
+        },
+        text = {
+            Text(
+                text = if (sessionName != null) {
+                    stringResource(R.string.delete_session_message, sessionName)
+                } else {
+                    stringResource(R.string.delete_session_message_unnamed)
+                },
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        },
+        confirmButton = {
+            TextButton(
+                onClick = onConfirm,
+                colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+            ) {
+                Text(stringResource(R.string.delete))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel), color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.surface
+    )
 }
 
 /**
@@ -317,18 +384,23 @@ private fun SessionsHeader(sessions: List<TranscriptionSession>, totalDataSizeBy
  * Card representing a single session in the list.
  *
  * Design: borderless surface card with a 4 dp left accent bar tinted
- * with the mode colour. Delete is accessible only inside the session detail screen.
+ * with the mode colour. Long-press opens a delete confirmation dialog.
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 private fun SessionCard(
     session: TranscriptionSession,
     onClick: () -> Unit,
+    onLongClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     Card(
-        modifier = modifier.fillMaxWidth(),
-        onClick = onClick,
+        modifier = modifier
+            .fillMaxWidth()
+            .combinedClickable(
+                onClick = onClick,
+                onLongClick = onLongClick
+            ),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)

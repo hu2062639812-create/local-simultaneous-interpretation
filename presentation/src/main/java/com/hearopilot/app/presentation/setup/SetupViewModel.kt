@@ -103,9 +103,12 @@ class SetupViewModel @Inject constructor(
 
         _isSttReady.value = modelDownloadManager.isSttModelDownloaded()
         // Check both variants so the flag is correct regardless of which one was downloaded.
-        _isLlmReady.value = LlmModelVariant.entries.any { variant ->
-            modelDownloadManager.isLlmModelDownloaded(modelConfigForVariant(variant).llmFilename)
-        }
+        // CUSTOM is excluded: it has no built-in filename and onboarding always offers a default.
+        _isLlmReady.value = LlmModelVariant.entries
+            .filter { it != LlmModelVariant.CUSTOM }
+            .any { variant ->
+                modelDownloadManager.isLlmModelDownloaded(modelConfigForVariant(variant).llmFilename)
+            }
 
         if (onboardingComplete) {
             // Re-verify STT model files still exist on disk

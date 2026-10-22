@@ -222,7 +222,20 @@ class AndroidDownloadManager @Inject constructor(
      */
     fun startLlmDownload(variant: LlmModelVariant = LlmModelVariant.Q8_0) {
         val config = modelConfigForVariant(variant)
-        Log.i(TAG, "Starting LLM download: ${config.llmFilename}")
+        startLlmDownloadInternal(config.llmUrl, config.llmFilename)
+    }
+
+    /**
+     * Start an LLM download from a user-supplied URL (custom model).
+     * [filename] must already be sanitized by the caller; .partial resume applies
+     * like for built-in variants.
+     */
+    fun startCustomLlmDownload(url: String, filename: String) {
+        startLlmDownloadInternal(url, filename)
+    }
+
+    private fun startLlmDownloadInternal(url: String, filename: String) {
+        Log.i(TAG, "Starting LLM download: $filename")
         llmProgressJob?.cancel()
 
         downloadStateManager.updateLlmState(
@@ -235,8 +248,8 @@ class AndroidDownloadManager @Inject constructor(
         llmProgressJob = scope.launch {
             try {
                 modelDownloadManager.downloadLlmModel(
-                    url = config.llmUrl,
-                    filename = config.llmFilename
+                    url = url,
+                    filename = filename
                 ).collect { p ->
                     downloadStateManager.updateLlmState(
                         DownloadState.Downloading(

@@ -74,6 +74,10 @@ class SettingsRepositoryImpl @Inject constructor(
         // LLM model variant selection (Q8_0 / IQ4_NL)
         val LLM_MODEL_VARIANT = stringPreferencesKey("llm_model_variant")
 
+        // Custom LLM model (user-supplied GGUF download URL + derived filename)
+        val CUSTOM_LLM_URL = stringPreferencesKey("custom_llm_url")
+        val CUSTOM_LLM_FILENAME = stringPreferencesKey("custom_llm_filename")
+
         // LLM sampler configuration
         val LLM_SAMPLER_TEMPERATURE = floatPreferencesKey("llm_sampler_temperature")
         val LLM_SAMPLER_TOP_K = intPreferencesKey("llm_sampler_top_k")
@@ -83,6 +87,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
         // One-time UI hints
         val HAS_SHOWN_HISTORY_INSIGHT_COACHMARK = booleanPreferencesKey("has_shown_history_insight_coachmark")
+        val HAS_SHOWN_FIRST_USE_TUTORIAL = booleanPreferencesKey("has_shown_first_use_tutorial")
     }
 
     override fun getSettings(): Flow<AppSettings> {
@@ -152,6 +157,10 @@ class SettingsRepositoryImpl @Inject constructor(
                     LlmModelVariant.Q8_0
                 },
 
+                // Custom LLM model
+                customLlmUrl = preferences[Keys.CUSTOM_LLM_URL] ?: defaults.customLlmUrl,
+                customLlmFilename = preferences[Keys.CUSTOM_LLM_FILENAME] ?: defaults.customLlmFilename,
+
                 // LLM sampler configuration
                 llmSamplerConfig = LlmSamplerConfig(
                     temperature = preferences[Keys.LLM_SAMPLER_TEMPERATURE] ?: defaults.llmSamplerConfig.temperature,
@@ -163,6 +172,7 @@ class SettingsRepositoryImpl @Inject constructor(
 
                 // One-time UI hints
                 hasShownHistoryInsightCoachmark = preferences[Keys.HAS_SHOWN_HISTORY_INSIGHT_COACHMARK] ?: false,
+                hasShownFirstUseTutorial = preferences[Keys.HAS_SHOWN_FIRST_USE_TUTORIAL] ?: false,
 
                 // Per-mode default insight strategy
                 simpleListeningDefaultStrategy = parseStrategy(
@@ -232,6 +242,10 @@ class SettingsRepositoryImpl @Inject constructor(
             // LLM model variant
             preferences[Keys.LLM_MODEL_VARIANT] = settings.llmModelVariant.name
 
+            // Custom LLM model
+            preferences[Keys.CUSTOM_LLM_URL] = settings.customLlmUrl
+            preferences[Keys.CUSTOM_LLM_FILENAME] = settings.customLlmFilename
+
             // LLM sampler configuration
             preferences[Keys.LLM_SAMPLER_TEMPERATURE] = settings.llmSamplerConfig.temperature
             preferences[Keys.LLM_SAMPLER_TOP_K] = settings.llmSamplerConfig.topK
@@ -250,6 +264,12 @@ class SettingsRepositoryImpl @Inject constructor(
     override suspend fun markHistoryInsightCoachmarkShown() {
         context.dataStore.edit { preferences ->
             preferences[Keys.HAS_SHOWN_HISTORY_INSIGHT_COACHMARK] = true
+        }
+    }
+
+    override suspend fun markFirstUseTutorialShown() {
+        context.dataStore.edit { preferences ->
+            preferences[Keys.HAS_SHOWN_FIRST_USE_TUTORIAL] = true
         }
     }
 

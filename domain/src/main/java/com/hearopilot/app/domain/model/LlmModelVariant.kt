@@ -24,5 +24,12 @@ enum class LlmModelVariant {
      * Beta: experimental, available only via manual download in Settings.
      * Not recommended automatically by [com.hearopilot.app.data.device.DeviceTierDetector].
      */
-    QWEN3_5_Q8_0
+    QWEN3_5_Q8_0,
+
+    /**
+     * User-supplied GGUF downloaded from a custom URL.
+     * The URL and local filename are persisted separately in AppSettings
+     * (customLlmUrl / customLlmFilename); there is no built-in ModelConfig.
+     */
+    CUSTOM
 }

@@ -134,10 +134,13 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_section_llm)) {
                 LlmModelVariantSetting(
                     currentVariant = settings.llmModelVariant,
-                    isQwen35Downloaded = viewModel.isVariantDownloaded(LlmModelVariant.QWEN3_5_Q8_0),
+                    recommendedVariant = viewModel.recommendedVariant,
                     activeDownloadVariant = activeDownloadVariant,
+                    isVariantDownloaded = { viewModel.isVariantDownloaded(it) },
                     onVariantChange = { viewModel.updateLlmModelVariant(it) },
-                    onDownloadVariant = { viewModel.downloadVariant(it) }
+                    onDownloadVariant = { viewModel.downloadVariant(it) },
+                    customFilename = settings.customLlmFilename,
+                    onCustomDownload = { viewModel.startCustomLlmDownload(it) }
                 )
                 LlmModelDownloadSetting(
                     isDownloaded = isLlmDownloaded,
@@ -463,21 +466,33 @@ private fun ModeAccordionCard(
 }
 
 /**
- * Card for the on-device interpretation model (Qwen 3.5 0.8B Q8_0), with a
- * "Recommended" badge and a "Downloaded" chip when the model file is on disk.
+ * Model-variant picker: three selectable cards (Gemma Q8_0, Gemma IQ4_NL,
+ * Qwen 3.5 0.8B Q8_0) plus a custom-model card that opens a URL dialog.
+ * The device-tier recommendation is shown as a badge on the matching card;
+ * downloaded variants get a "Downloaded" chip.
  *
  * @param currentVariant The currently persisted variant selection.
- * @param isQwen35Downloaded True if the Qwen model file exists on disk.
- * @param onVariantChange Callback when the user selects the model.
+ * @param recommendedVariant Variant recommended for this device's hardware.
+ * @param activeDownloadVariant Variant currently downloading, if any.
+ * @param isVariantDownloaded Whether a variant's model file is on disk.
+ * @param onVariantChange Callback when the user selects a variant.
+ * @param onDownloadVariant Callback to start downloading a variant.
+ * @param customFilename Persisted custom-model filename (blank when unset).
+ * @param onCustomDownload Callback with the user-entered custom GGUF URL.
  */
 @Composable
 private fun LlmModelVariantSetting(
     currentVariant: LlmModelVariant,
-    isQwen35Downloaded: Boolean,
+    recommendedVariant: LlmModelVariant,
     activeDownloadVariant: LlmModelVariant?,
+    isVariantDownloaded: (LlmModelVariant) -> Boolean,
     onVariantChange: (LlmModelVariant) -> Unit,
-    onDownloadVariant: (LlmModelVariant) -> Unit
+    onDownloadVariant: (LlmModelVariant) -> Unit,
+    customFilename: String,
+    onCustomDownload: (String) -> Unit
 ) {
+    var showCustomDialog by remember { mutableStateOf(false) }
+
     Column(
         modifier = Modifier.fillMaxWidth(),
         verticalArrangement = Arrangement.spacedBy(12.dp)
@@ -497,17 +512,118 @@ private fun LlmModelVariantSetting(
         }
 
         ModelVariantOption(
-            isSelected = currentVariant == LlmModelVariant.QWEN3_5_Q8_0,
-            isRecommended = true,
-            isDownloaded = isQwen35Downloaded,
-            isDownloading = activeDownloadVariant == LlmModelVariant.QWEN3_5_Q8_0,
+            isSelected = currentVariant == LlmModelVariant.Q8_0,
+            isRecommended = recommendedVariant == LlmModelVariant.Q8_0,
+            isDownloaded = isVariantDownloaded(LlmModelVariant.Q8_0),
+            isDownloading = activeDownloadVariant == LlmModelVariant.Q8_0,
             isBeta = false,
+            name = stringResource(R.string.settings_llm_model_variant_q8_name),
+            description = stringResource(R.string.settings_llm_model_variant_q8_desc),
+            onClick = { onVariantChange(LlmModelVariant.Q8_0) },
+            onDownload = { onDownloadVariant(LlmModelVariant.Q8_0) }
+        )
+
+        ModelVariantOption(
+            isSelected = currentVariant == LlmModelVariant.IQ4_NL,
+            isRecommended = recommendedVariant == LlmModelVariant.IQ4_NL,
+            isDownloaded = isVariantDownloaded(LlmModelVariant.IQ4_NL),
+            isDownloading = activeDownloadVariant == LlmModelVariant.IQ4_NL,
+            isBeta = false,
+            name = stringResource(R.string.settings_llm_model_variant_iq4_name),
+            description = stringResource(R.string.settings_llm_model_variant_iq4_desc),
+            onClick = { onVariantChange(LlmModelVariant.IQ4_NL) },
+            onDownload = { onDownloadVariant(LlmModelVariant.IQ4_NL) }
+        )
+
+        ModelVariantOption(
+            isSelected = currentVariant == LlmModelVariant.QWEN3_5_Q8_0,
+            isRecommended = false,
+            isDownloaded = isVariantDownloaded(LlmModelVariant.QWEN3_5_Q8_0),
+            isDownloading = activeDownloadVariant == LlmModelVariant.QWEN3_5_Q8_0,
+            isBeta = true,
             name = stringResource(R.string.settings_llm_model_variant_qwen35_name),
             description = stringResource(R.string.settings_llm_model_variant_qwen35_desc),
             onClick = { onVariantChange(LlmModelVariant.QWEN3_5_Q8_0) },
             onDownload = { onDownloadVariant(LlmModelVariant.QWEN3_5_Q8_0) }
         )
+
+        // Custom model: tapping selects it once downloaded, otherwise opens the URL dialog.
+        // The trailing action stays visible even when downloaded so the URL can be changed.
+        val customDownloaded = isVariantDownloaded(LlmModelVariant.CUSTOM)
+        ModelVariantOption(
+            isSelected = currentVariant == LlmModelVariant.CUSTOM,
+            isRecommended = false,
+            isDownloaded = customDownloaded,
+            isDownloading = activeDownloadVariant == LlmModelVariant.CUSTOM,
+            isBeta = true,
+            alwaysShowAction = true,
+            name = stringResource(R.string.settings_llm_model_variant_custom_name),
+            description = if (customFilename.isNotBlank()) customFilename
+            else stringResource(R.string.settings_llm_model_variant_custom_desc),
+            onClick = {
+                if (customDownloaded) onVariantChange(LlmModelVariant.CUSTOM)
+                else showCustomDialog = true
+            },
+            onDownload = { showCustomDialog = true }
+        )
     }
+
+    if (showCustomDialog) {
+        CustomModelDialog(
+            onDismiss = { showCustomDialog = false },
+            onConfirm = { url ->
+                showCustomDialog = false
+                onCustomDownload(url)
+            }
+        )
+    }
+}
+
+/**
+ * Dialog for entering a custom GGUF download URL.
+ * The confirm button is only enabled for plausible https URLs.
+ */
+@Composable
+private fun CustomModelDialog(
+    onDismiss: () -> Unit,
+    onConfirm: (String) -> Unit
+) {
+    var url by remember { mutableStateOf("") }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.settings_llm_model_custom_dialog_title)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(
+                    text = stringResource(R.string.settings_llm_model_custom_dialog_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = { url = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text(stringResource(R.string.settings_llm_model_custom_dialog_label)) },
+                    singleLine = true,
+                    isError = url.isNotBlank() && !url.trim().startsWith("https://")
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = url.trim().startsWith("https://"),
+                onClick = { onConfirm(url.trim()) }
+            ) {
+                Text(stringResource(R.string.settings_llm_model_download))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 /**
@@ -515,6 +631,9 @@ private fun LlmModelVariantSetting(
  *
  * When the model is not yet downloaded, shows a Download icon button on the trailing edge.
  * While any download is in progress, the button is replaced by a small progress spinner.
+ *
+ * @param alwaysShowAction Keep the trailing action visible even when downloaded
+ *   (used by the custom-model card so its URL dialog stays reachable).
  */
 @Composable
 private fun ModelVariantOption(
@@ -526,7 +645,8 @@ private fun ModelVariantOption(
     name: String,
     description: String,
     onClick: () -> Unit,
-    onDownload: () -> Unit
+    onDownload: () -> Unit,
+    alwaysShowAction: Boolean = false
 ) {
     val borderColor = if (isSelected) MaterialTheme.colorScheme.primary
     else MaterialTheme.colorScheme.outline
@@ -619,7 +739,7 @@ private fun ModelVariantOption(
                 }
             }
             // Download button / progress spinner on the trailing edge when not yet downloaded
-            if (!isDownloaded) {
+            if (!isDownloaded || alwaysShowAction) {
                 if (isDownloading) {
                     CircularProgressIndicator(
                         modifier = Modifier

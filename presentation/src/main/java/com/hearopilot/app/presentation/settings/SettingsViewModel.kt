@@ -111,7 +111,7 @@ class SettingsViewModel @Inject constructor(
             settingsRepository.getSettings().collect { loadedSettings ->
                 _settings.value = loadedSettings
                 // Re-check download status whenever settings change (variant may have changed).
-                val filename = modelConfigForVariant(loadedSettings.llmModelVariant).llmFilename
+                val filename = selectedFilename(loadedSettings)
                 _isLlmDownloaded.value = modelDownloadManager.isLlmModelDownloaded(filename)
                 _isTtsDownloaded.value = modelDownloadManager.isTtsModelDownloaded()
             }
@@ -119,18 +119,27 @@ class SettingsViewModel @Inject constructor(
         // Also re-check download status whenever the download state changes.
         viewModelScope.launch {
             downloadStateManager.llmDownloadState.collect { state ->
-                val selectedFilename = modelConfigForVariant(_settings.value.llmModelVariant).llmFilename
+                val selectedFilename = selectedFilename(_settings.value)
                 _isLlmDownloaded.value = modelDownloadManager.isLlmModelDownloaded(selectedFilename)
                 // When a download completes, update llmModelPath to the downloaded variant's file.
                 // Use activeDownloadVariant so non-selected variants also get their path stored.
                 if (state is DownloadState.Completed) {
                     val downloadedVariant = _activeDownloadVariant.value ?: _settings.value.llmModelVariant
-                    val filename = modelConfigForVariant(downloadedVariant).llmFilename
+                    val filename = filenameFor(downloadedVariant, _settings.value)
                     val path = modelDownloadManager.getLlmModelPath(filename)
                     if (path != null) {
-                        val updated = _settings.value.copy(llmModelPath = path)
+                        val updated = _settings.value.copy(
+                            llmModelPath = path,
+                            // Downloading the custom model switches the active model to it.
+                            llmModelVariant = if (downloadedVariant == LlmModelVariant.CUSTOM) {
+                                LlmModelVariant.CUSTOM
+                            } else {
+                                _settings.value.llmModelVariant
+                            }
+                        )
                         settingsRepository.updateSettings(updated)
                     }
+                    _isLlmDownloaded.value = path != null
                     _activeDownloadVariant.value = null
                 }
             }
@@ -148,6 +157,10 @@ class SettingsViewModel @Inject constructor(
      */
     fun startLlmDownload() {
         val variant = _settings.value.llmModelVariant
+        if (variant == LlmModelVariant.CUSTOM) {
+            restartCustomDownload()
+            return
+        }
         _activeDownloadVariant.value = variant
         androidDownloadManager.startLlmDownload(variant)
     }
@@ -155,6 +168,10 @@ class SettingsViewModel @Inject constructor(
     /** Resume an interrupted LLM download for the currently selected variant. */
     fun retryLlmDownload() {
         val variant = _settings.value.llmModelVariant
+        if (variant == LlmModelVariant.CUSTOM) {
+            restartCustomDownload()
+            return
+        }
         _activeDownloadVariant.value = variant
         androidDownloadManager.resumeLlmDownload(variant)
     }
@@ -170,6 +187,36 @@ class SettingsViewModel @Inject constructor(
     }
 
     /**
+     * Start a custom-model download from a user-supplied GGUF URL.
+     *
+     * Persists the URL and a sanitized filename first (so retries survive process
+     * death), then downloads. On completion the active model switches to the
+     * custom file (see the download-state collector in init).
+     */
+    fun startCustomLlmDownload(url: String) {
+        val filename = deriveCustomFilename(url)
+        viewModelScope.launch {
+            settingsRepository.updateSettings(
+                _settings.value.copy(
+                    customLlmUrl = url,
+                    customLlmFilename = filename
+                )
+            )
+        }
+        _activeDownloadVariant.value = LlmModelVariant.CUSTOM
+        androidDownloadManager.startCustomLlmDownload(url, filename)
+    }
+
+    /** Re-downloads the custom model from its persisted URL (.partial resume applies). */
+    private fun restartCustomDownload() {
+        val settings = _settings.value
+        val url = settings.customLlmUrl
+        if (url.isBlank() || settings.customLlmFilename.isBlank()) return
+        _activeDownloadVariant.value = LlmModelVariant.CUSTOM
+        androidDownloadManager.startCustomLlmDownload(url, settings.customLlmFilename)
+    }
+
+    /**
      * Update the LLM model variant preference and immediately switch [AppSettings.llmModelPath]
      * to the new variant's file if it is already downloaded.
      *
@@ -177,7 +224,7 @@ class SettingsViewModel @Inject constructor(
      */
     fun updateLlmModelVariant(variant: LlmModelVariant) {
         viewModelScope.launch {
-            val filename = modelConfigForVariant(variant).llmFilename
+            val filename = filenameFor(variant, _settings.value)
             val path = modelDownloadManager.getLlmModelPath(filename)
             val updated = _settings.value.copy(
                 llmModelVariant = variant,
@@ -192,8 +239,34 @@ class SettingsViewModel @Inject constructor(
      * Used by the Settings UI to display a "Downloaded" badge on each variant option.
      */
     fun isVariantDownloaded(variant: LlmModelVariant): Boolean {
-        val filename = modelConfigForVariant(variant).llmFilename
+        val filename = filenameFor(variant, _settings.value)
+        if (filename.isBlank()) return false
         return modelDownloadManager.isLlmModelDownloaded(filename)
+    }
+
+    /** Filename of the model file for [variant] under the current [settings]. */
+    private fun filenameFor(variant: LlmModelVariant, settings: AppSettings): String {
+        return if (variant == LlmModelVariant.CUSTOM) {
+            settings.customLlmFilename
+        } else {
+            modelConfigForVariant(variant).llmFilename
+        }
+    }
+
+    private fun selectedFilename(settings: AppSettings): String =
+        filenameFor(settings.llmModelVariant, settings)
+
+    /**
+     * Derives a safe local filename from a download URL: the last path segment,
+     * sanitized to [A-Za-z0-9._-], prefixed with "custom-" to avoid colliding
+     * with built-in model files.
+     */
+    private fun deriveCustomFilename(url: String): String {
+        val raw = url.substringBefore('?').substringBefore('#').substringAfterLast('/')
+        val safe = raw.filter { it.isLetterOrDigit() || it == '.' || it == '-' || it == '_' }
+        val base = safe.ifBlank { "model" }
+        val withExt = if (base.endsWith(".gguf", ignoreCase = true)) base else "$base.gguf"
+        return "custom-$withExt"
     }
 
     /**

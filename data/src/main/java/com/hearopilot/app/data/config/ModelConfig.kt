@@ -89,9 +89,26 @@ object Qwen35ModelConfig {
     )
 }
 
+/**
+ * Placeholder for [LlmModelVariant.CUSTOM]. The custom model has no built-in URL
+ * or filename — callers must read AppSettings.customLlmUrl / customLlmFilename
+ * instead. Only returned by [modelConfigForVariant] so exhaustive `when`
+ * expressions compile; never pass its empty fields to the download manager.
+ */
+object CustomModelConfig {
+
+    val INSTANCE = ModelConfig(
+        llmUrl = "",
+        llmFilename = "",
+        sttBaseUrl = STT_BASE_URL,
+        sttFiles = STT_FILES
+    )
+}
+
 /** Returns the [ModelConfig] that corresponds to [variant]. */
 fun modelConfigForVariant(variant: LlmModelVariant): ModelConfig = when (variant) {
     LlmModelVariant.Q8_0         -> DefaultModelConfig.INSTANCE
     LlmModelVariant.IQ4_NL       -> LowEndModelConfig.INSTANCE
     LlmModelVariant.QWEN3_5_Q8_0 -> Qwen35ModelConfig.INSTANCE
+    LlmModelVariant.CUSTOM       -> CustomModelConfig.INSTANCE
 }

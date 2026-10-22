@@ -24,5 +24,7 @@ data class SessionsUiState(
     // Total bytes of all on-device transcript + insight text (segments + insights).
     val totalDataSizeBytes: Long = 0L,
     val isLugandaModelDownloaded: Boolean = false,
-    val lugandaDownloadState: DownloadState = DownloadState.Idle
+    val lugandaDownloadState: DownloadState = DownloadState.Idle,
+    // One-time first-use tutorial overlay; resolved once from DataStore on init.
+    val showFirstUseTutorial: Boolean = false
 )

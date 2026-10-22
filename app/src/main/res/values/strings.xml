@@ -285,6 +285,17 @@
     <string name="error_create_session">Failed to create session: %s</string>
     <string name="error_delete_session">Failed to delete session: %s</string>
 
+    <!-- First-use tutorial -->
+    <string name="tutorial_skip">Skip</string>
+    <string name="tutorial_next">Next</string>
+    <string name="tutorial_start">Get Started</string>
+    <string name="tutorial_step1_title">New Session</string>
+    <string name="tutorial_step1_desc">Tap the + button at the bottom right to create an interpretation session and pick the language pair.</string>
+    <string name="tutorial_step2_title">Live Subtitles</string>
+    <string name="tutorial_step2_desc">Speech is recognized and translated into bilingual subtitles automatically. Tap the pencil next to a subtitle to fix the original text and re-translate.</string>
+    <string name="tutorial_step3_title">Manage Sessions</string>
+    <string name="tutorial_step3_desc">A summary is generated automatically after you stop. Long-press a session card to delete it; the top-right icons open search, phrasebook and settings.</string>
+
     <!-- Default LLM System Prompt -->
     <string name="default_llm_system_prompt">You are an AI assistant analyzing real-time speech transcriptions.\nRespond in the same language as the transcription.\nProvide concise insights, suggestions, or brief summaries.\nKeep responses under 100 words. Be actionable and helpful.</string>
 
@@ -583,18 +594,23 @@
 
     <!-- LLM Model Variant Setting -->
     <string name="settings_llm_model_variant_title">On-device AI model</string>
-    <string name="settings_llm_model_variant_desc">Qwen 3.5 0.8B handles live translation and the final summary locally. Download once, then work offline.</string>
+    <string name="settings_llm_model_variant_desc">On-device models handle live translation and the final summary locally. Pick one based on your device, download once, then work offline.</string>
     <string name="settings_llm_model_variant_q8_name">Standard (Q8)</string>
-    <string name="settings_llm_model_variant_q8_desc">Higher accuracy · For flagship devices</string>
+    <string name="settings_llm_model_variant_q8_desc">Higher accuracy · ~1 GB · for flagship devices</string>
     <string name="settings_llm_model_variant_iq4_name">Efficient (IQ4)</string>
-    <string name="settings_llm_model_variant_iq4_desc">Optimized for energy efficiency</string>
+    <string name="settings_llm_model_variant_iq4_desc">More power-efficient · ~650 MB · for mid-range devices</string>
     <string name="settings_llm_model_variant_recommended">Recommended</string>
     <string name="settings_llm_model_variant_downloaded">Downloaded</string>
     <string name="settings_llm_model_variant_beta">Beta</string>
     <string name="settings_llm_advanced_section_title">Advanced Models</string>
     <string name="settings_llm_advanced_section_desc">Experimental models for advanced users. Performance may vary from standard models.</string>
     <string name="settings_llm_model_variant_qwen35_name">Qwen 3.5 0.8B (Q8)</string>
-    <string name="settings_llm_model_variant_qwen35_desc">Recommended · strong Chinese and English · ~870 MB</string>
+    <string name="settings_llm_model_variant_qwen35_desc">Strong Chinese and English · ~870 MB</string>
+    <string name="settings_llm_model_variant_custom_name">Custom model</string>
+    <string name="settings_llm_model_variant_custom_desc">Paste any GGUF model link to run your own model on-device</string>
+    <string name="settings_llm_model_custom_dialog_title">Custom model link</string>
+    <string name="settings_llm_model_custom_dialog_desc">Supports llama.cpp-compatible GGUF models. Official releases with an embedded chat template work best; the app switches to it automatically after downloading.</string>
+    <string name="settings_llm_model_custom_dialog_label">GGUF download URL (https)</string>
 
     <!-- Face-to-face mode and push-to-talk -->
     <string name="face_to_face_open">Face to face</string>

@@ -40,4 +40,9 @@ interface SettingsRepository {
      * Marks the history-insight coachmark as shown so it is never displayed again.
      */
     suspend fun markHistoryInsightCoachmarkShown()
+
+    /**
+     * Marks the first-use tutorial as shown so it is never displayed again.
+     */
+    suspend fun markFirstUseTutorialShown()
 }

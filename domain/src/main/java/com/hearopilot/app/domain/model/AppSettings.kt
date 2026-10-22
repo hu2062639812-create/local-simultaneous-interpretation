@@ -45,6 +45,11 @@ data class AppSettings(
     // Qwen 3.5 0.8B is the default because interpretation needs solid Chinese support.
     val llmModelVariant: LlmModelVariant = LlmModelVariant.QWEN3_5_Q8_0,
 
+    // Custom LLM model: user-supplied download URL and derived local filename.
+    // Only meaningful when llmModelVariant == CUSTOM.
+    val customLlmUrl: String = "",
+    val customLlmFilename: String = "",
+
     // VAD parameters for better accuracy vs speed trade-off
     val vadMinSilenceDuration: Float = 0.5F,
     val vadMaxSpeechDuration: Float = 10.0F,
@@ -68,6 +73,9 @@ data class AppSettings(
     // One-time UI hints — set to true after the user has seen the coachmark.
     // Never reset by the user; persisted in DataStore.
     val hasShownHistoryInsightCoachmark: Boolean = false,
+
+    // One-time first-use tutorial on the sessions screen. Never reset by the user.
+    val hasShownFirstUseTutorial: Boolean = false,
 
     // Adaptive conservative-threads state — persisted across sessions.
     //
