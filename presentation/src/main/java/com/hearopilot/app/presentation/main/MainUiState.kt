@@ -4,6 +4,7 @@ import com.hearopilot.app.domain.model.AppSettings
 import com.hearopilot.app.domain.model.BatchInsightProgress
 import com.hearopilot.app.domain.model.InsightStrategy
 import com.hearopilot.app.domain.model.LlmInsight
+import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.TranscriptionSegment
 
 /**
@@ -51,9 +52,14 @@ data class MainUiState(
     val recordingDurationMillis: Long = 0,
     val pendingTranslations: Int = 0,
     val pendingTranslationIds: Set<String> = emptySet(),
+    // Whether the offline TTS voice model files are present on disk.
+    val ttsModelDownloaded: Boolean = true,
     // Interpretation direction of the current session. "lg" marks Chinese <-> Luganda
     // mode, which drives engine selection, language badges and the face-to-face layout.
-    val outputLanguage: String? = null
+    val outputLanguage: String? = null,
+    // Recording mode of the current session. Drives whether the subtitle edit
+    // affordance (fix original text -> re-translate) is offered.
+    val recordingMode: RecordingMode = RecordingMode.SHORT_MEETING
 ) {
     /** A session is active from the first start until Stop, including paused time. */
     val isSessionActive: Boolean

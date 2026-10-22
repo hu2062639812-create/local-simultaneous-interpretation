@@ -243,6 +243,9 @@ fun LibellulaApp() {
                 onNavigateToLlmDownload = {
                     navController.navigate("llm_download_standalone")
                 },
+                onNavigateToSettings = {
+                    navController.navigate("settings")
+                },
                 onNavigateToPhrasebook = {
                     navController.navigate("phrasebook")
                 }

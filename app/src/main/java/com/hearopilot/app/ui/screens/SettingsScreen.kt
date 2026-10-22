@@ -53,12 +53,17 @@ import com.hearopilot.app.domain.model.LlmSamplerConfig
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.ThemeMode
 import com.hearopilot.app.presentation.settings.SettingsViewModel
+import com.hearopilot.app.ui.feedback.FeedbackDiagnostics
 import com.hearopilot.app.ui.update.UpdateViewModel
 import kotlin.math.roundToInt
 
 /** URL for the app's Privacy Policy document. */
 private const val PRIVACY_POLICY_URL =
     "https://helldez.github.io/hearopilot/privacy-policy.html"
+
+/** URL for filing issues against the app repository. */
+private const val GITHUB_ISSUES_URL =
+    "https://github.com/hu2062639812-create/local-simultaneous-interpretation/issues"
 
 /**
  * Settings screen for configuring app behavior.
@@ -88,6 +93,7 @@ fun SettingsScreen(
     val updateState by updateViewModel.uiState.collectAsStateWithLifecycle()
     val context = LocalContext.current
     val appLanguage = AppLocale.current(context)
+    var showTtsDownloadPrompt by remember { mutableStateOf(false) }
 
     Scaffold(
         contentWindowInsets = WindowInsets(0),
@@ -149,7 +155,13 @@ fun SettingsScreen(
             SettingsSection(title = stringResource(R.string.settings_section_tts)) {
                 TtsEnabledSetting(
                     enabled = settings.ttsEnabled,
-                    onEnabledChange = { viewModel.updateTtsEnabled(it) }
+                    onEnabledChange = { enabled ->
+                        if (enabled && !isTtsDownloaded) {
+                            showTtsDownloadPrompt = true
+                        } else {
+                            viewModel.updateTtsEnabled(enabled)
+                        }
+                    }
                 )
                 TtsModelDownloadSetting(
                     isDownloaded = isTtsDownloaded,
@@ -162,6 +174,15 @@ fun SettingsScreen(
             // Support (WeChat appreciation) Section
             SettingsSection(title = stringResource(R.string.settings_section_support)) {
                 SupportSetting()
+            }
+
+            // Feedback Section
+            SettingsSection(title = stringResource(R.string.settings_section_feedback)) {
+                FeedbackCopySetting()
+                ExternalLinkSetting(
+                    title = stringResource(R.string.feedback_github_issues),
+                    url = GITHUB_ISSUES_URL
+                )
             }
 
             // Appearance Section
@@ -228,6 +249,28 @@ fun SettingsScreen(
                 LicensesNavigationSetting(onClick = onNavigateToLicenses)
             }
         }
+    }
+
+    // Prompted when the user enables read-aloud before the voice model exists.
+    if (showTtsDownloadPrompt) {
+        AlertDialog(
+            onDismissRequest = { showTtsDownloadPrompt = false },
+            title = { Text(stringResource(R.string.tts_model_missing_title)) },
+            text = { Text(stringResource(R.string.tts_model_missing_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTtsDownloadPrompt = false
+                    viewModel.startTtsDownload()
+                }) {
+                    Text(stringResource(R.string.tts_model_go_download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTtsDownloadPrompt = false }) {
+                    Text(stringResource(R.string.tts_model_download_later))
+                }
+            }
+        )
     }
 }
 
@@ -1981,6 +2024,61 @@ private fun TranslationLanguageSetting(
                         } else null
                     )
                 }
+            }
+        }
+    }
+}
+
+/**
+ * Feedback entry: copies a diagnostics report (app version, device info and
+ * the most recent crash log, if any) to the clipboard.
+ */
+@Composable
+private fun FeedbackCopySetting() {
+    val context = LocalContext.current
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surface,
+        tonalElevation = 0.dp
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable {
+                    val report = FeedbackDiagnostics.build(context)
+                    val clipboard =
+                        context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                    clipboard.setPrimaryClip(ClipData.newPlainText(report, report))
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.feedback_copied_toast),
+                        Toast.LENGTH_SHORT
+                    ).show()
+                }
+                .padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Icon(
+                imageVector = AppIcons.Copy,
+                contentDescription = null,
+                tint = ModeEmeraldTint,
+                modifier = Modifier.size(20.dp)
+            )
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.feedback_copy_diagnostics),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Text(
+                    text = stringResource(R.string.feedback_copy_diagnostics_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }

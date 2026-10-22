@@ -38,6 +38,7 @@ object AppIcons {
     val FaceToFace: ImageVector get() = Icons.Outlined.QuestionAnswer
     val Phrasebook: ImageVector get() = Icons.Outlined.MenuBook
     val Flip: ImageVector get() = Icons.Outlined.ScreenRotation
+    val Swap: ImageVector get() = Icons.Outlined.SwapHoriz
 
     // AI & Features
     val AutoAwesome: ImageVector get() = Icons.Outlined.AutoAwesome

@@ -298,21 +298,9 @@
 
     <string name="interpretation_dialog_title">新建同传</string>
     <string name="interpretation_dialog_subtitle">离线同声传译</string>
-    <string name="interpretation_direction_label">翻译方向</string>
-    <string name="interpretation_direction_auto">自动（中 ⇄ 英）</string>
-    <string name="interpretation_direction_auto_desc">逐句识别语言，并翻译成另一种语言</string>
-    <string name="interpretation_direction_zh">译成中文</string>
-    <string name="interpretation_direction_zh_desc">英文语音译成中文；中文语音保持原样</string>
-    <string name="interpretation_direction_en">译成英文</string>
-    <string name="interpretation_direction_en_desc">中文语音译成英文；英文语音保持原样</string>
-    <string name="interpretation_direction_lg">中文 ⇄ Luganda（乌干达语）</string>
-    <string name="interpretation_direction_lg_desc">中文语音译成 Luganda；Luganda 语音译成中文</string>
-    <string name="interpretation_direction_sw">中文 ⇄ 斯瓦希里语</string>
-    <string name="interpretation_direction_sw_desc">中文语音译成斯瓦希里语；斯瓦希里语语音译成中文</string>
-    <string name="interpretation_direction_fr">中文 ⇄ 法语</string>
-    <string name="interpretation_direction_fr_desc">中文语音译成法语；法语语音译成中文</string>
-    <string name="interpretation_direction_ar">中文 ⇄ 阿拉伯语</string>
-    <string name="interpretation_direction_ar_desc">中文语音译成阿拉伯语；阿拉伯语语音译成中文</string>
+    <string name="interpretation_direction_label">语言</string>
+    <string name="direction_auto_label">自动（中 ⇄ 英）</string>
+    <string name="language_swap">交换语言</string>
     <string name="omnilingual_model_title">需要多语言语音识别模型</string>
     <string name="omnilingual_model_desc">该语言需要单独的语音识别模型（约 365 MB）。下载一次后全程离线使用，建议在 Wi-Fi 下完成。</string>
     <string name="omnilingual_model_download">下载多语言模型（365 MB）</string>
@@ -370,6 +358,10 @@
     <string name="settings_tts_model_file_title">语音模型</string>
     <string name="settings_tts_model_file_desc">vits-melo-tts-zh_en（约 169 MB），仅需下载一次，全程设备端合成。</string>
     <string name="tts_toggle">朗读</string>
+    <string name="tts_model_missing_title">语音模型未下载</string>
+    <string name="tts_model_missing_message">朗读需要先下载离线语音模型（约 169 MB，只需一次）。现在下载吗？</string>
+    <string name="tts_model_go_download">去下载</string>
+    <string name="tts_model_download_later">稍后</string>
 
     <!-- 赞赏支持 -->
     <string name="settings_section_support">赞赏支持</string>
@@ -384,6 +376,13 @@
     <string name="support_amount_custom">自定义</string>
     <string name="support_amount_hint">点按金额可复制，扫码后在微信中输入</string>
     <string name="support_amount_copied">已复制金额 %1$s</string>
+
+    <!-- 反馈 -->
+    <string name="settings_section_feedback">反馈</string>
+    <string name="feedback_copy_diagnostics">复制诊断信息</string>
+    <string name="feedback_copy_diagnostics_desc">复制版本、设备信息与最近的崩溃日志，发送给开发者排查问题。</string>
+    <string name="feedback_copied_toast">诊断信息已复制</string>
+    <string name="feedback_github_issues">在 GitHub 提交问题</string>
 
     <string name="settings_section_simple_listening">简单聆听</string>
     <string name="settings_section_short_meeting">短会议</string>
@@ -415,6 +414,10 @@
     <string name="edit_task_title">编辑任务</string>
     <string name="edit_content_hint">内容</string>
     <string name="edit_item">编辑</string>
+    <string name="segment_edit_hint">修改原文</string>
+    <string name="segment_edit_title">修改原文</string>
+    <string name="segment_edit_original_label">原文</string>
+    <string name="segment_edit_confirm">重新翻译</string>
 
     <!-- 补充：VAD 与采样参数 -->
     <string name="settings_vad_title">识别精度设置</string>

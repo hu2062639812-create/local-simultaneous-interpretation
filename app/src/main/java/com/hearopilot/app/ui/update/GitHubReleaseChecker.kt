@@ -17,7 +17,7 @@ internal object GitHubReleaseChecker {
 
     private const val API_URL =
         "https://api.github.com/repos/hu2062639812-create/local-simultaneous-interpretation/releases/latest"
-    private const val TIMEOUT_MS = 8_000
+    private const val TIMEOUT_MS = 10_000
     private val LIST_MARKER = Regex("^[-*+]\\s+")
     private val MARKDOWN_LINK = Regex("\\[([^]]+)]\\([^)]*\\)")
 

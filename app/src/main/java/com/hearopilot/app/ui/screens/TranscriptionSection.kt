@@ -15,6 +15,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -49,6 +50,7 @@ fun TranscriptionSection(
     isPaused: Boolean = false,
     pendingTranslationIds: Set<String>,
     nonCjkCode: String? = null,
+    onEditSegment: ((TranscriptionSegment) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val listState = rememberLazyListState()
@@ -76,7 +78,8 @@ fun TranscriptionSection(
                     TranscriptionItem(
                         segment = segment,
                         isTranslating = segment.id in pendingTranslationIds,
-                        nonCjkCode = nonCjkCode
+                        nonCjkCode = nonCjkCode,
+                        onEditSegment = onEditSegment
                     )
                 }
             }
@@ -157,7 +160,8 @@ private fun TranscriptionEmptyState(
 private fun TranscriptionItem(
     segment: TranscriptionSegment,
     isTranslating: Boolean,
-    nonCjkCode: String?
+    nonCjkCode: String?,
+    onEditSegment: ((TranscriptionSegment) -> Unit)?
 ) {
     Surface(
         modifier = Modifier.fillMaxWidth(),
@@ -171,6 +175,7 @@ private fun TranscriptionItem(
     ) {
         Column(modifier = Modifier.padding(16.dp)) {
             Row(
+                modifier = Modifier.fillMaxWidth(),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
@@ -181,6 +186,20 @@ private fun TranscriptionItem(
                         style = MaterialTheme.typography.labelSmall,
                         color = ModeEmeraldTint
                     )
+                }
+                Spacer(modifier = Modifier.weight(1f))
+                if (segment.isComplete && onEditSegment != null) {
+                    IconButton(
+                        onClick = { onEditSegment(segment) },
+                        modifier = Modifier.size(28.dp)
+                    ) {
+                        Icon(
+                            imageVector = AppIcons.Edit,
+                            contentDescription = stringResource(R.string.segment_edit_hint),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            modifier = Modifier.size(16.dp)
+                        )
+                    }
                 }
             }
 

@@ -16,6 +16,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -32,9 +33,9 @@ import com.hearopilot.app.ui.ui.theme.*
  * New-session dialog for the offline interpretation app.
  *
  * Every session is created as [RecordingMode.REAL_TIME_TRANSLATION] with an
- * end-of-session summary. The only user choices are the translation direction
- * (auto / into Chinese / into English / Chinese with Luganda, Kiswahili, French
- * or Arabic) and an optional session topic.
+ * end-of-session summary. The only user choices are the language pair, picked
+ * in a single bilingual row (two dropdowns with a swap button), and an
+ * optional session topic.
  */
 @Composable
 fun NewSessionDialog(
@@ -45,9 +46,12 @@ fun NewSessionDialog(
     lugandaDownloadState: DownloadState = DownloadState.Idle,
     onDownloadLugandaModel: () -> Unit = {}
 ) {
-    // null = auto (bidirectional), "zh" = force Chinese output, "en" = force English output,
-    // "lg"/"sw"/"fr"/"ar" = Chinese <-> that language (Omnilingual ASR).
-    var direction by remember { mutableStateOf<String?>(null) }
+    // Bilingual pair chosen in a single row. AUTO = auto-detect Chinese/English;
+    // picking an Omnilingual language (lg/sw/fr/ar) on either side pins the
+    // other side to Chinese. resolveDirection() maps the pair to the session's
+    // outputLanguage: null = auto, "zh"/"en" = forced output, "lg"/"sw"/"fr"/"ar".
+    var leftLang by remember { mutableStateOf(AUTO) }
+    var rightLang by remember { mutableStateOf(AUTO) }
     var sessionTopic by remember { mutableStateOf("") }
 
     val maxHeight = LocalConfiguration.current.screenHeightDp.dp * 0.88f
@@ -114,51 +118,30 @@ fun NewSessionDialog(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_auto),
-                            description = stringResource(R.string.interpretation_direction_auto_desc),
-                            isSelected = direction == null,
-                            onClick = { direction = null }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_zh),
-                            description = stringResource(R.string.interpretation_direction_zh_desc),
-                            isSelected = direction == "zh",
-                            onClick = { direction = "zh" }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_en),
-                            description = stringResource(R.string.interpretation_direction_en_desc),
-                            isSelected = direction == "en",
-                            onClick = { direction = "en" }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_lg),
-                            description = stringResource(R.string.interpretation_direction_lg_desc),
-                            isSelected = direction == "lg",
-                            onClick = { direction = "lg" }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_sw),
-                            description = stringResource(R.string.interpretation_direction_sw_desc),
-                            isSelected = direction == "sw",
-                            onClick = { direction = "sw" }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_fr),
-                            description = stringResource(R.string.interpretation_direction_fr_desc),
-                            isSelected = direction == "fr",
-                            onClick = { direction = "fr" }
-                        )
-                        DirectionOption(
-                            title = stringResource(R.string.interpretation_direction_ar),
-                            description = stringResource(R.string.interpretation_direction_ar_desc),
-                            isSelected = direction == "ar",
-                            onClick = { direction = "ar" }
+                        BilingualDirectionRow(
+                            left = leftLang,
+                            right = rightLang,
+                            onLeftSelected = { code ->
+                                val (l, r) = normalizePair(code, rightLang)
+                                leftLang = l
+                                rightLang = r
+                            },
+                            onRightSelected = { code ->
+                                val (l, r) = normalizePair(leftLang, code)
+                                leftLang = l
+                                rightLang = r
+                            },
+                            onSwap = {
+                                val (l, r) = normalizePair(rightLang, leftLang)
+                                leftLang = l
+                                rightLang = r
+                            }
                         )
                     }
 
-                    if (SupportedLanguages.isOmnilingualMode(direction) && !isLugandaModelDownloaded) {
+                    if (SupportedLanguages.isOmnilingualMode(resolveDirection(leftLang, rightLang)) &&
+                        !isLugandaModelDownloaded
+                    ) {
                         OmnilingualDownloadCard(
                             downloadState = lugandaDownloadState,
                             onDownload = onDownloadLugandaModel
@@ -216,14 +199,15 @@ fun NewSessionDialog(
                             onConfirm(
                                 nameAndTopic,
                                 RecordingMode.REAL_TIME_TRANSLATION,
-                                direction,
+                                resolveDirection(leftLang, rightLang),
                                 InsightStrategy.END_OF_SESSION,
                                 nameAndTopic
                             )
                         },
                         modifier = Modifier.fillMaxWidth(),
-                        enabled = !(SupportedLanguages.isOmnilingualMode(direction) &&
-                            !isLugandaModelDownloaded)
+                        enabled = !(SupportedLanguages.isOmnilingualMode(
+                            resolveDirection(leftLang, rightLang)
+                        ) && !isLugandaModelDownloaded)
                     )
                 }
             }
@@ -292,58 +276,135 @@ private fun OmnilingualDownloadCard(
     }
 }
 
-@Composable
-private fun DirectionOption(
-    title: String,
-    description: String,
-    isSelected: Boolean,
-    onClick: () -> Unit
-) {
-    val borderColor = if (isSelected) ModeEmeraldTint else MaterialTheme.colorScheme.outlineVariant
-    val bgColor = if (isSelected) {
-        ModeEmeraldTint.copy(alpha = 0.07f)
-    } else {
-        MaterialTheme.colorScheme.surface
-    }
+/** Sentinel for the auto-detect (Chinese ⇄ English) side of the pair picker. */
+private const val AUTO = "auto"
 
+/** Directions that run the Omnilingual ASR engine; always paired with Chinese. */
+private val OMNILINGUAL_CODES = setOf("lg", "sw", "fr", "ar")
+
+private val DIRECTION_CODES = listOf(AUTO, "zh", "en", "lg", "sw", "fr", "ar")
+
+/**
+ * Maps a normalized language pair to the session's outputLanguage value:
+ * null = auto-detect Chinese/English, "zh"/"en" = forced output language,
+ * "lg"/"sw"/"fr"/"ar" = bidirectional Chinese <-> that language.
+ */
+private fun resolveDirection(left: String, right: String): String? = when {
+    left == AUTO || right == AUTO -> null
+    left in OMNILINGUAL_CODES -> left
+    right in OMNILINGUAL_CODES -> right
+    else -> right // (zh, en) -> "en"; (en, zh) -> "zh"
+}
+
+/**
+ * Enforces the only valid combinations: auto pairs only with zh/en, an
+ * Omnilingual side forces the other side to Chinese, and the two sides of a
+ * zh/en pair must differ.
+ */
+private fun normalizePair(left: String, right: String): Pair<String, String> {
+    var l = left
+    var r = right
+    when {
+        l == AUTO -> if (r in OMNILINGUAL_CODES) r = "zh"
+        r == AUTO -> if (l in OMNILINGUAL_CODES) l = "zh"
+        l in OMNILINGUAL_CODES -> r = "zh"
+        r in OMNILINGUAL_CODES -> l = "zh"
+        l == r -> r = if (l == "zh") "en" else "zh"
+    }
+    return l to r
+}
+
+/**
+ * Single-row bilingual picker: two compact language dropdowns joined by a
+ * swap button. Replaces the old stacked direction list.
+ */
+@Composable
+private fun BilingualDirectionRow(
+    left: String,
+    right: String,
+    onLeftSelected: (String) -> Unit,
+    onRightSelected: (String) -> Unit,
+    onSwap: () -> Unit
+) {
     Row(
-        modifier = Modifier
-            .fillMaxWidth()
-            .clip(MaterialTheme.shapes.medium)
-            .background(bgColor)
-            .border(
-                width = if (isSelected) 1.5.dp else 1.dp,
-                color = borderColor,
-                shape = MaterialTheme.shapes.medium
-            )
-            .clickable(onClick = onClick)
-            .padding(14.dp),
+        modifier = Modifier.fillMaxWidth(),
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp)
+        horizontalArrangement = Arrangement.spacedBy(4.dp)
     ) {
-        Column(modifier = Modifier.weight(1f)) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = if (isSelected) FontWeight.SemiBold else FontWeight.Normal,
-                color = if (isSelected) ModeEmeraldTint else MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = description,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+        CompactLanguageDropdown(
+            selected = left,
+            onSelected = onLeftSelected,
+            modifier = Modifier.weight(1f)
+        )
+        IconButton(onClick = onSwap) {
+            Icon(
+                imageVector = AppIcons.Swap,
+                contentDescription = stringResource(R.string.language_swap),
+                tint = ModeEmeraldTint,
+                modifier = Modifier.size(22.dp)
             )
         }
-        if (isSelected) {
-            Icon(
-                imageVector = AppIcons.CheckCircle,
-                contentDescription = null,
-                tint = ModeEmeraldTint,
-                modifier = Modifier.size(20.dp)
+        CompactLanguageDropdown(
+            selected = right,
+            onSelected = onRightSelected,
+            modifier = Modifier.weight(1f)
+        )
+    }
+}
+
+@Composable
+private fun CompactLanguageDropdown(
+    selected: String,
+    onSelected: (String) -> Unit,
+    modifier: Modifier = Modifier
+) {
+    var expanded by remember { mutableStateOf(false) }
+
+    Box(modifier = modifier) {
+        OutlinedButton(
+            onClick = { expanded = true },
+            modifier = Modifier.fillMaxWidth(),
+            shape = MaterialTheme.shapes.medium,
+            contentPadding = PaddingValues(horizontal = 12.dp, vertical = 10.dp)
+        ) {
+            Text(
+                text = directionDisplayName(selected),
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f)
             )
+            Icon(
+                imageVector = AppIcons.ExpandMore,
+                contentDescription = null,
+                modifier = Modifier.size(18.dp)
+            )
+        }
+        DropdownMenu(
+            expanded = expanded,
+            onDismissRequest = { expanded = false },
+            modifier = Modifier.heightIn(max = 320.dp)
+        ) {
+            DIRECTION_CODES.forEach { code ->
+                DropdownMenuItem(
+                    text = { Text(directionDisplayName(code)) },
+                    onClick = {
+                        onSelected(code)
+                        expanded = false
+                    },
+                    leadingIcon = if (code == selected) {
+                        { Icon(AppIcons.CheckCircle, null, modifier = Modifier.size(16.dp)) }
+                    } else null
+                )
+            }
         }
     }
 }
+
+@Composable
+private fun directionDisplayName(code: String): String =
+    if (code == AUTO) stringResource(R.string.direction_auto_label)
+    else SupportedLanguages.getByCode(code)?.nativeName ?: code
 
 @Composable
 fun LanguageSelector(

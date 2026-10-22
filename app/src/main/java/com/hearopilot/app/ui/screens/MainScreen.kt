@@ -46,7 +46,9 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hearopilot.app.ui.R
 import com.hearopilot.app.ui.ui.theme.*
 import com.hearopilot.app.domain.model.DownloadState
+import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.SupportedLanguages
+import com.hearopilot.app.domain.model.TranscriptionSegment
 import com.hearopilot.app.presentation.main.MainViewModel
 import com.hearopilot.app.ui.components.ShimmerInsightCard
 import java.util.concurrent.TimeUnit
@@ -83,6 +85,7 @@ internal fun formatRecordingTime(millis: Long): String {
 fun MainScreen(
     onNavigateBack: () -> Unit = {},
     onNavigateToLlmDownload: () -> Unit = {},
+    onNavigateToSettings: () -> Unit = {},
     onNavigateToPhrasebook: () -> Unit = {},
     viewModel: MainViewModel = hiltViewModel()
 ) {
@@ -95,6 +98,11 @@ fun MainScreen(
 
     // Intercept hardware back button while recording is active.
     var showStopConfirmDialog by remember { mutableStateOf(false) }
+    // Shown when the user enables read-aloud before downloading the voice model.
+    var showTtsModelDialog by remember { mutableStateOf(false) }
+    // Segment whose original text the user is editing to fix an ASR error.
+    var editingSegment by remember { mutableStateOf<TranscriptionSegment?>(null) }
+    var editingSegmentText by remember { mutableStateOf("") }
     // Block back navigation while recording or while the session is being finalized.
     BackHandler(enabled = (uiState.isSessionActive || uiState.isFinalizingSession) && !showFaceToFace) {
         if (!uiState.isFinalizingSession) {
@@ -177,6 +185,64 @@ fun MainScreen(
             confirmButton = {
                 TextButton(onClick = onNavigateBack) {
                     Text(stringResource(android.R.string.ok))
+                }
+            }
+        )
+    }
+
+    // Shown when the user enables read-aloud before downloading the voice model.
+    if (showTtsModelDialog) {
+        AlertDialog(
+            onDismissRequest = { showTtsModelDialog = false },
+            title = { Text(stringResource(R.string.tts_model_missing_title)) },
+            text = { Text(stringResource(R.string.tts_model_missing_message)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showTtsModelDialog = false
+                    onNavigateToSettings()
+                }) {
+                    Text(stringResource(R.string.tts_model_go_download))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showTtsModelDialog = false }) {
+                    Text(stringResource(R.string.cancel))
+                }
+            }
+        )
+    }
+
+    // Edit-original-text dialog: fixing an ASR error re-runs the on-device
+    // translation for the corrected sentence.
+    editingSegment?.let { segment ->
+        AlertDialog(
+            onDismissRequest = { editingSegment = null },
+            title = { Text(stringResource(R.string.segment_edit_title)) },
+            text = {
+                OutlinedTextField(
+                    value = editingSegmentText,
+                    onValueChange = { editingSegmentText = it },
+                    modifier = Modifier.fillMaxWidth(),
+                    minLines = 2,
+                    maxLines = 6,
+                    label = { Text(stringResource(R.string.segment_edit_original_label)) }
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    enabled = editingSegmentText.isNotBlank() &&
+                        editingSegmentText.trim() != segment.text.trim(),
+                    onClick = {
+                        viewModel.retranslateSegment(segment, editingSegmentText.trim())
+                        editingSegment = null
+                    }
+                ) {
+                    Text(stringResource(R.string.segment_edit_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { editingSegment = null }) {
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -466,24 +532,21 @@ fun MainScreen(
                     }
                 }
 
-                // AI status — icon tint shows readiness, no dot
-                val aiReady = uiState.llmStatus.contains("Ready")
+                // Settings entry — replaces the old disabled AI status button.
                 IconButton(
-                    onClick = { /* no-op */ },
-                    modifier = Modifier.weight(1f),
-                    enabled = false
+                    onClick = onNavigateToSettings,
+                    modifier = Modifier.weight(1f)
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(
-                            AppIcons.AutoAwesome,
-                            contentDescription = null,
-                            tint = if (aiReady) AccentSuccess else MaterialTheme.colorScheme.onSurfaceVariant,
+                            AppIcons.Settings,
+                            contentDescription = stringResource(R.string.settings_title),
                             modifier = Modifier.size(22.dp)
                         )
                         Text(
-                            text = stringResource(R.string.llm),
+                            text = stringResource(R.string.settings_title),
                             style = MaterialTheme.typography.labelSmall,
-                            color = if (aiReady) AccentSuccess else MaterialTheme.colorScheme.onSurfaceVariant
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -577,7 +640,13 @@ fun MainScreen(
                 )
                 FilterChip(
                     selected = uiState.settings.ttsEnabled,
-                    onClick = { viewModel.toggleTts() },
+                    onClick = {
+                        if (!uiState.settings.ttsEnabled && !uiState.ttsModelDownloaded) {
+                            showTtsModelDialog = true
+                        } else {
+                            viewModel.toggleTts()
+                        }
+                    },
                     label = { Text(stringResource(R.string.tts_toggle)) },
                     leadingIcon = {
                         Icon(
@@ -684,6 +753,12 @@ fun MainScreen(
                             isPaused = uiState.isPaused,
                             pendingTranslationIds = uiState.pendingTranslationIds,
                             nonCjkCode = SupportedLanguages.omnilingualCodeFor(uiState.outputLanguage),
+                            onEditSegment = if (uiState.recordingMode == RecordingMode.REAL_TIME_TRANSLATION) {
+                                { segment ->
+                                    editingSegment = segment
+                                    editingSegmentText = segment.text
+                                }
+                            } else null,
                             modifier = Modifier.fillMaxSize()
                         )
                         1 -> {

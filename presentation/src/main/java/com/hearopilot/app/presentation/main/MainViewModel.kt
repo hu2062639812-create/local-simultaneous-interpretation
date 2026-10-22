@@ -182,7 +182,8 @@ class MainViewModel @Inject constructor(
                     _uiState.update {
                         it.copy(
                             insightStrategy = session.insightStrategy,
-                            outputLanguage = session.outputLanguage
+                            outputLanguage = session.outputLanguage,
+                            recordingMode = session.mode
                         )
                     }
                     Log.i(TAG, "Session config: mode=$currentRecordingMode, input=$currentInputLanguage, output=$currentOutputLanguage, strategy=$currentInsightStrategy, topic=$currentTopic")
@@ -229,7 +230,12 @@ class MainViewModel @Inject constructor(
             // (llmModelVariant, llmModelPath, etc.) rather than the in-memory default that
             // the init-block collector may not have applied yet.
             val settings = settingsRepository.getSettings().first()
-            _uiState.update { it.copy(settings = settings) }
+            _uiState.update {
+                it.copy(
+                    settings = settings,
+                    ttsModelDownloaded = modelDownloadManager.isTtsModelDownloaded()
+                )
+            }
 
             // Initialize STT. Sessions whose output language is spoken with the
             // Omnilingual 1600-language engine (Luganda/Swahili/French/Arabic) use
@@ -574,6 +580,9 @@ class MainViewModel @Inject constructor(
             )
         }
         if (!enabled) ttsEngine.stop()
+        _uiState.update {
+            it.copy(ttsModelDownloaded = modelDownloadManager.isTtsModelDownloaded())
+        }
     }
 
     private suspend fun pauseCapture(pausedDuration: Long) {
@@ -845,6 +854,86 @@ class MainViewModel @Inject constructor(
         _uiState.update { state ->
             if (state.error != null) state
             else state.copy(error = "翻译失败：本地模型没有返回有效译文。请重新开始同传再试。")
+        }
+    }
+
+    /**
+     * Applies a user edit to a segment's original text (fixing an ASR error) and
+     * re-runs the on-device translation for the corrected sentence. The new
+     * translation replaces the previous one and is read aloud when TTS is enabled
+     * and the target is zh/en.
+     */
+    fun retranslateSegment(segment: TranscriptionSegment, newText: String) {
+        val trimmed = newText.trim()
+        if (trimmed.isEmpty() || trimmed == segment.text.trim()) return
+
+        val updated = segment.copy(text = trimmed)
+        viewModelScope.launch {
+            // The LLM may have been released after the end-of-session summary;
+            // reload it (no-op when still resident) so the correction can be
+            // re-translated.
+            llmRepository.reloadModel()
+                .onFailure { e ->
+                    Log.e(TAG, "Translation model unavailable for retranslation: ${e.message}")
+                }
+            // Clear the stale translation first so the subtitle shows the
+            // translating spinner instead of the old text while the LLM works.
+            transcriptionRepository.updateSegmentTranslation(segment.id, "")
+                .onFailure { e ->
+                    Log.e(TAG, "Failed to clear old translation: ${e.message}")
+                }
+            transcriptionRepository.updateSegmentText(segment.id, trimmed)
+                .onFailure { e ->
+                    Log.e(TAG, "Failed to update segment text: ${e.message}")
+                }
+            _uiState.update { state ->
+                state.copy(
+                    completedSegments = state.completedSegments.map {
+                        if (it.id == segment.id) updated else it
+                    },
+                    pendingTranslations = state.pendingTranslations + 1,
+                    pendingTranslationIds = state.pendingTranslationIds + segment.id
+                )
+            }
+
+            val expectedTarget = translateSegmentUseCase.resolveTargetLanguage(
+                translateSegmentUseCase.resolveSourceLanguage(updated, currentOutputLanguage),
+                currentOutputLanguage
+            )
+            translateSegmentUseCase(updated, currentOutputLanguage)
+                .onSuccess { translation ->
+                    if (translation != null) {
+                        transcriptionRepository.updateSegmentTranslation(
+                            segmentId = segment.id,
+                            translatedText = translation.text
+                        ).onFailure { e ->
+                            Log.e(TAG, "Failed to store retranslation: ${e.message}")
+                        }
+                        if (_uiState.value.settings.ttsEnabled &&
+                            translation.text.isNotBlank() &&
+                            (expectedTarget?.startsWith("zh") == true ||
+                                expectedTarget?.startsWith("en") == true)
+                        ) {
+                            ttsEngine.speak(translation.text)
+                        }
+                    }
+                    // A null result means the corrected text is already in the
+                    // target language — the cleared translation stays empty.
+                }
+                .onFailure { e ->
+                    Log.e(TAG, "Retranslation failed for ${segment.id}: ${e.message}")
+                    _uiState.update { state ->
+                        if (state.error != null) state
+                        else state.copy(error = "重新翻译失败，请稍后重试。")
+                    }
+                }
+
+            _uiState.update { state ->
+                state.copy(
+                    pendingTranslations = (state.pendingTranslations - 1).coerceAtLeast(0),
+                    pendingTranslationIds = state.pendingTranslationIds - segment.id
+                )
+            }
         }
     }
 

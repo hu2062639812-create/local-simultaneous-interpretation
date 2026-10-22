@@ -53,7 +53,10 @@ class UpdateViewModel @Inject constructor(
                 runCatching { GitHubReleaseChecker.fetchLatest() }
             }
 
-            if (!manual) {
+            // Only a successful check consumes the auto-check budget: on network
+            // failure (e.g. GitHub unreachable) the next app start retries
+            // instead of waiting another 24 hours.
+            if (!manual && result.isSuccess) {
                 prefs.edit().putLong(KEY_LAST_AUTO_CHECK, System.currentTimeMillis()).apply()
             }
 
