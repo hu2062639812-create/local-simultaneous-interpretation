@@ -93,6 +93,7 @@
     <string name="insights_download_button">下载模型</string>
     <string name="insights_downloading">正在下载 %d%%</string>
     <string name="insight_label">总结</string>
+    <string name="session_card_summary_label">总结</string>
     <string name="action_items">行动项</string>
     <string name="segments_analyzed">已分析 %d 句</string>
     <string name="expand">展开</string>

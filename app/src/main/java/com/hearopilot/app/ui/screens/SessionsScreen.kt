@@ -30,6 +30,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.hearopilot.app.ui.R
 import androidx.compose.ui.graphics.Brush
 import com.hearopilot.app.ui.ui.theme.*
+import com.hearopilot.app.domain.model.LlmInsight
 import com.hearopilot.app.domain.model.RecordingMode
 import com.hearopilot.app.domain.model.TranscriptionSession
 import com.hearopilot.app.presentation.sessions.SessionsViewModel
@@ -160,6 +161,7 @@ fun SessionsScreen(
                 else -> {
                     SessionsList(
                         sessions = uiState.sessions,
+                        summaries = uiState.summaries,
                         totalDataSizeBytes = uiState.totalDataSizeBytes,
                         onSessionClick = onNavigateToSessionDetails,
                         onSessionLongClick = { pendingDeleteSession = it }
@@ -209,6 +211,7 @@ fun SessionsScreen(
 @Composable
 private fun SessionsList(
     sessions: List<TranscriptionSession>,
+    summaries: Map<String, LlmInsight>,
     totalDataSizeBytes: Long,
     onSessionClick: (String) -> Unit,
     onSessionLongClick: (TranscriptionSession) -> Unit
@@ -228,6 +231,7 @@ private fun SessionsList(
         items(sessions, key = { it.id }) { session ->
             SessionCard(
                 session = session,
+                summary = summaries[session.id],
                 onClick = { onSessionClick(session.id) },
                 onLongClick = { onSessionLongClick(session) },
                 modifier = Modifier
@@ -390,6 +394,7 @@ private fun SessionsHeader(sessions: List<TranscriptionSession>, totalDataSizeBy
 @Composable
 private fun SessionCard(
     session: TranscriptionSession,
+    summary: LlmInsight?,
     onClick: () -> Unit,
     onLongClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -468,9 +473,90 @@ private fun SessionCard(
                         )
                     }
                 }
+
+                // End-of-session summary, visible without opening the session.
+                summary?.let { insight ->
+                    Spacer(modifier = Modifier.height(10.dp))
+                    SessionSummaryPreview(insight)
+                }
             }
         }
     }
+}
+
+/**
+ * Compact summary block on a session card: AI title plus a two-line excerpt.
+ */
+@Composable
+private fun SessionSummaryPreview(insight: LlmInsight) {
+    val excerpt = remember(insight.content) { summaryExcerpt(insight.content) }
+    val title = insight.title?.takeIf { it.isNotBlank() }
+
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(10.dp),
+        color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.30f),
+        tonalElevation = 0.dp
+    ) {
+        Column(
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 8.dp),
+            verticalArrangement = Arrangement.spacedBy(3.dp)
+        ) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp)
+            ) {
+                Icon(
+                    imageVector = AppIcons.AutoAwesome,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(12.dp)
+                )
+                Text(
+                    text = stringResource(R.string.session_card_summary_label),
+                    style = MaterialTheme.typography.labelSmall,
+                    fontWeight = FontWeight.Bold,
+                    color = MaterialTheme.colorScheme.primary
+                )
+                if (title != null) {
+                    Text(
+                        text = title,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurface,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f)
+                    )
+                }
+            }
+            if (excerpt.isNotBlank()) {
+                Text(
+                    text = excerpt,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            }
+        }
+    }
+}
+
+/**
+ * Flattens the summary's point list into one line so the card can ellipsize it.
+ */
+private fun summaryExcerpt(content: String): String {
+    val bullet = Regex("^\\s*([-*•·]|\\d+[.)、])\\s*")
+    return content.lineSequence()
+        .map { line ->
+            line.replace(bullet, "")
+                .replace("**", "")
+                .replace("`", "")
+                .trim()
+        }
+        .filter { it.isNotBlank() }
+        .joinToString(" ")
+        .take(240)
 }
 
 /** Vertical overlap between the hero and the steps sheet, in dp. */

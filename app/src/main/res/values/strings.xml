@@ -112,6 +112,7 @@
     <string name="insights_download_speed">%s MB/s</string>
     <string name="insights_download_eta">ETA: %s</string>
     <string name="insight_label">AI Insight</string>
+    <string name="session_card_summary_label">Summary</string>
     <string name="action_items">Action Items</string>
     <string name="segments_analyzed">%d segments analyzed</string>
     <string name="expand">Expand</string>

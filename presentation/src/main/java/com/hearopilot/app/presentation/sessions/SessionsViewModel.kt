@@ -12,6 +12,7 @@ import com.hearopilot.app.domain.repository.SettingsRepository
 import com.hearopilot.app.domain.usecase.transcription.CreateSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.DeleteSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.GetAllSessionsUseCase
+import com.hearopilot.app.domain.usecase.transcription.GetLatestSummariesUseCase
 import com.hearopilot.app.domain.usecase.transcription.GetTotalDataSizeUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,7 @@ import javax.inject.Inject
 @HiltViewModel
 class SessionsViewModel @Inject constructor(
     private val getAllSessionsUseCase: GetAllSessionsUseCase,
+    private val getLatestSummariesUseCase: GetLatestSummariesUseCase,
     private val createSessionUseCase: CreateSessionUseCase,
     private val deleteSessionUseCase: DeleteSessionUseCase,
     private val settingsRepository: SettingsRepository,
@@ -63,6 +65,11 @@ class SessionsViewModel @Inject constructor(
         viewModelScope.launch {
             getTotalDataSizeUseCase().collect { bytes ->
                 _uiState.update { it.copy(totalDataSizeBytes = bytes) }
+            }
+        }
+        viewModelScope.launch {
+            getLatestSummariesUseCase().collect { summaries ->
+                _uiState.update { it.copy(summaries = summaries) }
             }
         }
         viewModelScope.launch {

@@ -197,6 +197,15 @@ interface TranscriptionRepository {
      */
     fun getInsightsBySession(sessionId: String): Flow<List<LlmInsight>>
 
+    /**
+     * Latest end-of-session summary per session, keyed by session ID.
+     *
+     * Sessions that have not produced a summary yet are absent from the map.
+     *
+     * @return Flow emitting the per-session summary map
+     */
+    fun getLatestSummaries(): Flow<Map<String, LlmInsight>>
+
     // ========== Statistics ==========
 
     /**

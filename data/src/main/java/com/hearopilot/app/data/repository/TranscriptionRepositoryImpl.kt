@@ -232,6 +232,16 @@ class TranscriptionRepositoryImpl @Inject constructor(
             .map { entities -> entities.map { it.toDomain() } }
     }
 
+    override fun getLatestSummaries(): Flow<Map<String, LlmInsight>> {
+        return insightDao.getFinalInsights().map { entities ->
+            entities.groupBy { it.sessionId }
+                .mapNotNull { (sessionId, insights) ->
+                    insights.maxByOrNull { it.timestamp }?.let { sessionId to it.toDomain() }
+                }
+                .toMap()
+        }
+    }
+
     // ========== Statistics ==========
 
     override fun getTotalDataSizeBytes(): Flow<Long> =

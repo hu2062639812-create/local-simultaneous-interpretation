@@ -17,6 +17,7 @@ import com.hearopilot.app.domain.usecase.transcription.SearchTranscriptionsUseCa
 import com.hearopilot.app.domain.usecase.transcription.DeleteSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.RenameSessionUseCase
 import com.hearopilot.app.domain.usecase.transcription.GetAllSessionsUseCase
+import com.hearopilot.app.domain.usecase.transcription.GetLatestSummariesUseCase
 import com.hearopilot.app.domain.usecase.transcription.GetSessionDetailsUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveInsightUseCase
 import com.hearopilot.app.domain.usecase.transcription.SaveSegmentUseCase
@@ -54,6 +55,14 @@ object UseCaseModule {
         repository: TranscriptionRepository
     ): GetAllSessionsUseCase {
         return GetAllSessionsUseCase(repository)
+    }
+
+    @Provides
+    @ViewModelScoped
+    fun provideGetLatestSummariesUseCase(
+        repository: TranscriptionRepository
+    ): GetLatestSummariesUseCase {
+        return GetLatestSummariesUseCase(repository)
     }
 
     @Provides

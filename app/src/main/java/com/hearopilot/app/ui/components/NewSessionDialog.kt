@@ -47,9 +47,9 @@ fun NewSessionDialog(
     onDownloadLugandaModel: () -> Unit = {}
 ) {
     // Bilingual pair chosen in a single row. AUTO = auto-detect Chinese/English;
-    // picking an Omnilingual language (lg/sw/fr/ar) on either side pins the
+    // picking an Omnilingual language (lg/sw/fr/ar/ko/es) on either side pins the
     // other side to Chinese. resolveDirection() maps the pair to the session's
-    // outputLanguage: null = auto, "zh"/"en" = forced output, "lg"/"sw"/"fr"/"ar".
+    // outputLanguage: null = auto, "zh"/"en" = forced output, or the Omni code.
     var leftLang by remember { mutableStateOf(AUTO) }
     var rightLang by remember { mutableStateOf(AUTO) }
     var sessionTopic by remember { mutableStateOf("") }
@@ -127,14 +127,14 @@ fun NewSessionDialog(
                                 rightLang = r
                             },
                             onRightSelected = { code ->
-                                val (l, r) = normalizePair(leftLang, code)
+                                val (r, l) = normalizePair(code, leftLang)
                                 leftLang = l
                                 rightLang = r
                             },
                             onSwap = {
-                                val (l, r) = normalizePair(rightLang, leftLang)
-                                leftLang = l
-                                rightLang = r
+                                val previousLeft = leftLang
+                                leftLang = rightLang
+                                rightLang = previousLeft
                             }
                         )
                     }
@@ -280,38 +280,45 @@ private fun OmnilingualDownloadCard(
 private const val AUTO = "auto"
 
 /** Directions that run the Omnilingual ASR engine; always paired with Chinese. */
-private val OMNILINGUAL_CODES = setOf("lg", "sw", "fr", "ar")
+private val OMNILINGUAL_CODES = setOf("lg", "sw", "fr", "ar", "ko", "es")
 
-private val DIRECTION_CODES = listOf(AUTO, "zh", "en", "lg", "sw", "fr", "ar")
+private val DIRECTION_CODES = listOf(AUTO, "zh", "en", "lg", "sw", "fr", "ar", "ko", "es")
 
 /**
  * Maps a normalized language pair to the session's outputLanguage value:
- * null = auto-detect Chinese/English, "zh"/"en" = forced output language,
- * "lg"/"sw"/"fr"/"ar" = bidirectional Chinese <-> that language.
+ * null = bidirectional (Chinese ⇄ English, detected per utterance), an Omni
+ * code ("lg"/"sw"/"fr"/"ar"/"ko"/"es") = bidirectional Chinese ⇄ that language.
+ *
+ * A zh/en pair must not be turned into a forced target: the picker advertises
+ * "⇄", so both directions have to be translated (an explicit zh/en preference
+ * would make the app skip utterances already in that language, i.e. only one
+ * direction would ever get a translation).
  */
 private fun resolveDirection(left: String, right: String): String? = when {
     left == AUTO || right == AUTO -> null
     left in OMNILINGUAL_CODES -> left
     right in OMNILINGUAL_CODES -> right
-    else -> right // (zh, en) -> "en"; (en, zh) -> "zh"
+    else -> null // zh <-> en: bidirectional
 }
 
 /**
- * Enforces the only valid combinations: auto pairs only with zh/en, an
- * Omnilingual side forces the other side to Chinese, and the two sides of a
- * zh/en pair must differ.
+ * Normalizes a pair after one side was just picked: [picked] is the language the
+ * user chose and [other] is the untouched counterpart. Returns the pair as
+ * (pickedSide, otherSide).
+ *
+ * Valid combinations: an Omnilingual side forces the other side to Chinese, auto
+ * only pairs with zh/en, and the two sides of a zh/en pair must differ. A picked
+ * Omnilingual language always wins over the old counterpart so that switching
+ * from one Omni language to another works.
  */
-private fun normalizePair(left: String, right: String): Pair<String, String> {
-    var l = left
-    var r = right
-    when {
-        l == AUTO -> if (r in OMNILINGUAL_CODES) r = "zh"
-        r == AUTO -> if (l in OMNILINGUAL_CODES) l = "zh"
-        l in OMNILINGUAL_CODES -> r = "zh"
-        r in OMNILINGUAL_CODES -> l = "zh"
-        l == r -> r = if (l == "zh") "en" else "zh"
-    }
-    return l to r
+private fun normalizePair(picked: String, other: String): Pair<String, String> = when {
+    picked == AUTO ->
+        if (other in OMNILINGUAL_CODES) "zh" to other else AUTO to other
+    picked in OMNILINGUAL_CODES -> picked to "zh"
+    other == AUTO -> picked to AUTO
+    other in OMNILINGUAL_CODES -> "zh" to other
+    picked == other -> picked to if (picked == "zh") "en" else "zh"
+    else -> picked to other
 }
 
 /**

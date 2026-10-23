@@ -63,8 +63,8 @@ internal fun faceStatusText(status: FaceStatus, chinese: Boolean): String = when
  * Source-language resolution shared by the face-to-face panels.
  *
  * [nonCjkCode] is the session's speech-language code in Omnilingual sessions
- * (Luganda/Swahili/French/Arabic); in those sessions non-Chinese text is
- * attributed to that language.
+ * (Luganda/Swahili/French/Arabic/Korean/Spanish); in those sessions
+ * non-Chinese text is attributed to that language.
  */
 internal fun TranscriptionSegment.languageCode(nonCjkCode: String? = null): String {
     val detected = detectedLanguage?.lowercase()?.trim()

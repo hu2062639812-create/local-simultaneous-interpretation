@@ -47,6 +47,7 @@ object SupportedLanguages {
         SupportedLanguage("el", "Greek",       "Ελληνικά"),
         SupportedLanguage("hu", "Hungarian",   "Magyar"),
         SupportedLanguage("it", "Italian",     "Italiano"),
+        SupportedLanguage("ko", "Korean",      "한국어", omnilingualAsr = true),
         SupportedLanguage("lg", "Luganda",     "Luganda", omnilingualAsr = true),
         SupportedLanguage("lv", "Latvian",     "Latviešu"),
         SupportedLanguage("lt", "Lithuanian",  "Lietuvių"),
@@ -57,7 +58,7 @@ object SupportedLanguages {
         SupportedLanguage("ru", "Russian",     "Русский"),
         SupportedLanguage("sk", "Slovak",      "Slovenčina"),
         SupportedLanguage("sl", "Slovenian",   "Slovenščina"),
-        SupportedLanguage("es", "Spanish",     "Español"),
+        SupportedLanguage("es", "Spanish",     "Español", omnilingualAsr = true),
         SupportedLanguage("sw", "Swahili (Kiswahili)", "Kiswahili", omnilingualAsr = true),
         SupportedLanguage("sv", "Swedish",     "Svenska"),
         SupportedLanguage("uk", "Ukrainian",   "Українська"),
@@ -71,7 +72,7 @@ object SupportedLanguages {
 
     /**
      * The session's speech-language code when the given output language requires
-     * the Omnilingual ASR engine ("lg", "sw", "fr", "ar"), else null. In such
+     * the Omnilingual ASR engine ("lg", "sw", "fr", "ar", "ko", "es"), else null. In such
      * sessions non-Chinese recognized text is attributed to this language.
      */
     fun omnilingualCodeFor(outputLanguage: String?): String? {

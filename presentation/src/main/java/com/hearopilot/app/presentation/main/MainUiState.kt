@@ -54,8 +54,9 @@ data class MainUiState(
     val pendingTranslationIds: Set<String> = emptySet(),
     // Whether the offline TTS voice model files are present on disk.
     val ttsModelDownloaded: Boolean = true,
-    // Interpretation direction of the current session. "lg" marks Chinese <-> Luganda
-    // mode, which drives engine selection, language badges and the face-to-face layout.
+    // Interpretation direction of the current session. An Omni code ("lg", "sw", "fr",
+    // "ar", "ko", "es") marks Chinese <-> that language; it drives engine selection,
+    // language badges and the face-to-face layout.
     val outputLanguage: String? = null,
     // Recording mode of the current session. Drives whether the subtitle edit
     // affordance (fix original text -> re-translate) is offered.

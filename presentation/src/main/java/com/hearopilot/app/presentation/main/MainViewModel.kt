@@ -238,7 +238,7 @@ class MainViewModel @Inject constructor(
             }
 
             // Initialize STT. Sessions whose output language is spoken with the
-            // Omnilingual 1600-language engine (Luganda/Swahili/French/Arabic) use
+            // Omnilingual 1600-language engine (Luganda/Swahili/French/Arabic/Korean/Spanish) use
             // that recognizer; everything else uses SenseVoice. Read the session
             // directly to avoid a race with the init-block coroutine that sets
             // currentOutputLanguage.

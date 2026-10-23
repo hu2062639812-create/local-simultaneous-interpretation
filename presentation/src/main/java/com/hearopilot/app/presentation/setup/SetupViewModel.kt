@@ -253,8 +253,11 @@ class SetupViewModel @Inject constructor(
         viewModelScope.launch {
             val current = settingsRepository.getSettings().first()
             settingsRepository.updateSettings(current.copy(llmModelVariant = variant))
+            // Start only after the variant is persisted: when the model file already
+            // exists the download completes synchronously, and the completion handler
+            // reads the variant back from settings.
+            androidDownloadManager.startLlmDownload(variant)
         }
-        androidDownloadManager.startLlmDownload(variant)
     }
 
     /**

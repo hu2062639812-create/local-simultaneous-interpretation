@@ -34,6 +34,13 @@ interface LlmInsightDao {
     suspend fun getInsightCount(sessionId: String): Int
 
     /**
+     * All end-of-session summaries, newest first. Final insights carry an
+     * empty source-segment list, which serializes to "[]".
+     */
+    @Query("SELECT * FROM llm_insights WHERE source_segment_ids = '[]' ORDER BY timestamp DESC")
+    fun getFinalInsights(): Flow<List<LlmInsightEntity>>
+
+    /**
      * Update the content of an existing insight.
      */
     @Query("UPDATE llm_insights SET content = :newContent WHERE id = :insightId")

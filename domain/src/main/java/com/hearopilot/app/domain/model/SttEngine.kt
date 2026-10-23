@@ -7,8 +7,8 @@ package com.hearopilot.app.domain.model
  * latency and is the default for zh <-> en interpretation.
  *
  * [OMNILINGUAL] is a 1600-language CTC model used for Luganda, Kiswahili,
- * French and Arabic sessions. These languages are not supported by SenseVoice,
- * so they require this separate model.
+ * French, Arabic, Korean and Spanish sessions. Sessions in these directions
+ * always run the separate multilingual model.
  */
 enum class SttEngine {
     SENSE_VOICE,
